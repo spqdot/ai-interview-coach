@@ -65,6 +65,17 @@ def fallback_evaluation(
         for keyword in topic_keywords.get(topic, {topic.lower()})
         if keyword in normalized_answer
     }
+    project_keywords = {
+        "project", "built", "build", "created", "developed", "implemented",
+        "worked", "work", "model", "data", "dataset", "analysis", "system",
+        "application", "pipeline", "team", "contribution", "responsible",
+    }
+    challenge_keywords = {
+        "challenge", "problem", "issue", "error", "bug", "failure", "difficulty",
+        "solved", "fixed", "debugged", "improved", "handled", "addressed",
+    }
+    has_project_detail = any(keyword in normalized_answer for keyword in project_keywords)
+    has_challenge_detail = any(keyword in normalized_answer for keyword in challenge_keywords)
 
     if (
         not normalized_answer
@@ -80,6 +91,18 @@ def fallback_evaluation(
         feedback = (
             "This answer is not relevant to the interview question. "
             "Review the core concept and answer using the correct technical terms."
+        )
+    elif question_count == 4 and not has_project_detail:
+        score = 0
+        feedback = (
+            "This answer does not describe a relevant project or your contribution. "
+            "Explain what you built, the problem it addressed, and your role."
+        )
+    elif question_count == 5 and not has_challenge_detail:
+        score = 0
+        feedback = (
+            "This answer does not address the project challenge in the question. "
+            "Describe one problem you encountered and how you handled it."
         )
     elif word_count < 12:
         score = 4
