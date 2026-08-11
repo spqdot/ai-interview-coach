@@ -40,6 +40,22 @@ def fallback_evaluation(
 ) -> dict:
     normalized_answer = answer.strip().lower()
     word_count = len(answer.split())
+    topic_keywords = {
+        "RAG": {
+            "rag", "retrieval", "retrieve", "retrieves", "document",
+            "documents", "context", "embedding", "embeddings", "vector",
+            "database", "search", "llm", "generation", "grounded",
+        },
+        "LLM Fundamentals": {
+            "llm", "language", "model", "token", "tokens", "training",
+            "transformer", "context", "prompt", "generation",
+        },
+    }
+    matching_keywords = {
+        keyword
+        for keyword in topic_keywords.get(topic, {topic.lower()})
+        if keyword in normalized_answer
+    }
 
     if not normalized_answer or "don't know" in normalized_answer or "dont know" in normalized_answer:
         score = 0
@@ -47,17 +63,29 @@ def fallback_evaluation(
             "This answer does not demonstrate understanding of the concept. "
             "Review the key terms and try explaining the idea in your own words."
         )
+    elif question_count <= 3 and not matching_keywords:
+        score = 0
+        feedback = (
+            "This answer is not relevant to the interview question. "
+            "Review the core concept and answer using the correct technical terms."
+        )
     elif word_count < 12:
         score = 4
         feedback = (
             "You identified part of the idea, but the answer needs more technical detail "
             "and a clearer explanation."
         )
-    else:
-        score = 7
+    elif question_count <= 3 and len(matching_keywords) >= 3:
+        score = 8
         feedback = (
-            "Your answer addresses the question clearly. Strengthen it further by adding "
-            "a concrete example and explaining the important technical details."
+            "Your answer is relevant and includes several important technical concepts. "
+            "Add a concise example to make the explanation even stronger."
+        )
+    else:
+        score = 6
+        feedback = (
+            "Your answer is relevant, but it needs more specific technical details "
+            "and a concrete example."
         )
 
     follow_up_questions = {
