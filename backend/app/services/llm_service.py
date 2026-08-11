@@ -42,9 +42,9 @@ def fallback_evaluation(
     word_count = len(answer.split())
 
     if not normalized_answer or "don't know" in normalized_answer or "dont know" in normalized_answer:
-        score = 2
+        score = 0
         feedback = (
-            "Your answer shows limited familiarity with the concept. "
+            "This answer does not demonstrate understanding of the concept. "
             "Review the key terms and try explaining the idea in your own words."
         )
     elif word_count < 12:
