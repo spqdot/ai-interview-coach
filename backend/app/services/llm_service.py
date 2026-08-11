@@ -40,6 +40,15 @@ def fallback_evaluation(
 ) -> dict:
     normalized_answer = answer.strip().lower()
     word_count = len(answer.split())
+    non_answer_phrases = {
+        "dont know",
+        "do not know",
+        "idk",
+        "no idea",
+        "not sure",
+        "i have no idea",
+        "i am not sure",
+    }
     topic_keywords = {
         "RAG": {
             "rag", "retrieval", "retrieve", "retrieves", "document",
@@ -57,7 +66,10 @@ def fallback_evaluation(
         if keyword in normalized_answer
     }
 
-    if not normalized_answer or "don't know" in normalized_answer or "dont know" in normalized_answer:
+    if (
+        not normalized_answer
+        or any(phrase in normalized_answer.replace("'", "") for phrase in non_answer_phrases)
+    ):
         score = 0
         feedback = (
             "This answer does not demonstrate understanding of the concept. "
