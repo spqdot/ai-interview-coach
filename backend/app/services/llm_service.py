@@ -12,16 +12,17 @@ from backend.app.prompts.evaluation_prompt import (
     EVALUATION_SYSTEM_PROMPT,
 )
 
-from backend.app.services.rag_service import (
-    get_interview_context,
-)
-
 
 # ==========================================
 # Environment
 # ==========================================
 
 load_dotenv("backend/.env")
+
+
+# ==========================================
+# OpenAI Client
+# ==========================================
 
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
@@ -109,7 +110,25 @@ def evaluate_answer(
     """
 
     # ==========================================
-    # Retrieve RAG context
+    # IMPORTANT:
+    # Lazy-load RAG service
+    # ==========================================
+    #
+    # DO NOT import rag_service at the top of this
+    # file. The embedding model can be expensive to
+    # load and can prevent Render from completing
+    # its startup/port check.
+    #
+    # We load it only when an answer is evaluated.
+    # ==========================================
+
+    from backend.app.services.rag_service import (
+        get_interview_context
+    )
+
+
+    # ==========================================
+    # Retrieve RAG Context
     # ==========================================
 
     context = get_interview_context(
@@ -118,6 +137,7 @@ def evaluate_answer(
         topic=topic,
         k=3,
     )
+
 
     # ==========================================
     # Decide Next Question Type
@@ -264,6 +284,7 @@ For HARD difficulty:
   optimization, and complex trade-offs are appropriate.
 """
 
+
     # ==========================================
     # Build Evaluation Prompt
     # ==========================================
@@ -338,6 +359,7 @@ Rules for the JSON response:
 - Do not include text after the JSON.
 """
 
+
     # ==========================================
     # OpenAI Evaluation
     # ==========================================
@@ -349,6 +371,7 @@ Rules for the JSON response:
     )
 
     result = response.output_text.strip()
+
 
     # ==========================================
     # Parse JSON Response
@@ -366,6 +389,7 @@ Rules for the JSON response:
         raise ValueError(
             "The evaluation model returned invalid JSON."
         ) from error
+
 
     # ==========================================
     # Basic Response Validation
@@ -385,11 +409,13 @@ Rules for the JSON response:
             f"{missing_fields}"
         )
 
+
     # ==========================================
     # Ensure Score Is Integer
     # ==========================================
 
     try:
+
         evaluation["score"] = int(
             evaluation["score"]
         )
@@ -400,6 +426,7 @@ Rules for the JSON response:
             "Evaluation score must be an integer."
         ) from error
 
+
     # ==========================================
     # Keep Score Within 0-10
     # ==========================================
@@ -408,6 +435,7 @@ Rules for the JSON response:
         0,
         min(10, evaluation["score"]),
     )
+
 
     return evaluation
 
@@ -452,6 +480,7 @@ Feedback:
 ----------------------------------------
 """
 
+
     # ==========================================
     # Build Final Report Prompt
     # ==========================================
@@ -487,6 +516,9 @@ The report should identify:
 1. The candidate's main strengths.
 2. The most important areas for improvement.
 3. Overall feedback about interview readiness.
+4. An overall rating.
+5. A hiring recommendation.
+6. Recommended topics for further preparation.
 
 IMPORTANT:
 
@@ -498,11 +530,28 @@ IMPORTANT:
 - Keep the feedback constructive.
 - Strengths should contain 2 to 4 short points.
 - Areas for improvement should contain 2 to 4 short points.
+- Recommended topics should contain 2 to 5 short topics.
 - The final feedback should be concise and useful.
+
+For overall_rating, use one of:
+- "Excellent"
+- "Very Good"
+- "Good"
+- "Needs Improvement"
+- "Poor"
+
+For hiring_recommendation, use one of:
+- "Strong Hire"
+- "Hire"
+- "Consider"
+- "Needs Improvement"
+- "Not Recommended"
 
 Return ONLY valid JSON with exactly these fields:
 
 {{
+    "overall_rating": "Good",
+    "hiring_recommendation": "Consider",
     "strengths": [
         "Strength 1",
         "Strength 2"
@@ -511,13 +560,20 @@ Return ONLY valid JSON with exactly these fields:
         "Improvement 1",
         "Improvement 2"
     ],
+    "recommended_topics": [
+        "Topic 1",
+        "Topic 2"
+    ],
     "final_feedback": "Overall interview feedback."
 }}
 
 JSON RULES:
 
+- overall_rating must be a string.
+- hiring_recommendation must be a string.
 - strengths must be a JSON array of strings.
 - areas_for_improvement must be a JSON array of strings.
+- recommended_topics must be a JSON array of strings.
 - final_feedback must be a string.
 - Do not include Markdown.
 - Do not include ```json.
@@ -525,6 +581,7 @@ JSON RULES:
 - Do not include any text before the JSON.
 - Do not include any text after the JSON.
 """
+
 
     # ==========================================
     # OpenAI Final Report
@@ -536,6 +593,7 @@ JSON RULES:
     )
 
     result = response.output_text.strip()
+
 
     # ==========================================
     # Parse JSON
@@ -555,13 +613,17 @@ JSON RULES:
             "The final report model returned invalid JSON."
         ) from error
 
+
     # ==========================================
     # Validate Required Fields
     # ==========================================
 
     required_fields = {
+        "overall_rating",
+        "hiring_recommendation",
         "strengths",
         "areas_for_improvement",
+        "recommended_topics",
         "final_feedback",
     }
 
@@ -574,15 +636,41 @@ JSON RULES:
             f"{missing_fields}"
         )
 
+
     # ==========================================
     # Validate Types
     # ==========================================
 
-    if not isinstance(report["strengths"], list):
+    if not isinstance(
+        report["overall_rating"],
+        str,
+    ):
+
+        raise ValueError(
+            "Final report overall_rating must be a string."
+        )
+
+
+    if not isinstance(
+        report["hiring_recommendation"],
+        str,
+    ):
+
+        raise ValueError(
+            "Final report hiring_recommendation "
+            "must be a string."
+        )
+
+
+    if not isinstance(
+        report["strengths"],
+        list,
+    ):
 
         raise ValueError(
             "Final report strengths must be a list."
         )
+
 
     if not isinstance(
         report["areas_for_improvement"],
@@ -594,6 +682,18 @@ JSON RULES:
             "must be a list."
         )
 
+
+    if not isinstance(
+        report["recommended_topics"],
+        list,
+    ):
+
+        raise ValueError(
+            "Final report recommended_topics "
+            "must be a list."
+        )
+
+
     if not isinstance(
         report["final_feedback"],
         str,
@@ -603,5 +703,6 @@ JSON RULES:
             "Final report final_feedback "
             "must be a string."
         )
+
 
     return report
