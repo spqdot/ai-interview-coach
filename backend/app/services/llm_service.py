@@ -29,6 +29,107 @@ client = OpenAI(
 )
 
 
+def use_remote_evaluation() -> bool:
+    return os.getenv("USE_REMOTE_EVALUATION", "false").lower() == "true"
+
+
+def fallback_evaluation(
+    topic: str,
+    answer: str,
+    question_count: int,
+) -> dict:
+    normalized_answer = answer.strip().lower()
+    word_count = len(answer.split())
+
+    if not normalized_answer or "don't know" in normalized_answer or "dont know" in normalized_answer:
+        score = 2
+        feedback = (
+            "Your answer shows limited familiarity with the concept. "
+            "Review the key terms and try explaining the idea in your own words."
+        )
+    elif word_count < 12:
+        score = 4
+        feedback = (
+            "You identified part of the idea, but the answer needs more technical detail "
+            "and a clearer explanation."
+        )
+    else:
+        score = 7
+        feedback = (
+            "Your answer addresses the question clearly. Strengthen it further by adding "
+            "a concrete example and explaining the important technical details."
+        )
+
+    follow_up_questions = {
+        "RAG": [
+            "What role do embeddings play in a RAG system?",
+            "Why does a RAG system use a vector database?",
+        ],
+        "LLM Fundamentals": [
+            "What is tokenization, and why is it important for an LLM?",
+            "What is a context window in an LLM?",
+        ],
+    }
+    topic_questions = follow_up_questions.get(
+        topic,
+        [
+            f"What is one important use case for {topic}?",
+            f"What is one challenge when working with {topic}?",
+        ],
+    )
+
+    if question_count == 3:
+        next_question = (
+            "Can you describe one relevant project you worked on, the problem it solved, "
+            "and your personal contribution?"
+        )
+    elif question_count == 4:
+        next_question = (
+            "What was one technical challenge in that project, and how did you address it?"
+        )
+    else:
+        next_question = topic_questions[(question_count - 1) % len(topic_questions)]
+
+    return {
+        "score": score,
+        "feedback": feedback,
+        "next_question": next_question,
+    }
+
+
+def fallback_final_report(final_score: float) -> dict:
+    if final_score >= 8:
+        overall_rating = "Very Good"
+        recommendation = "Hire"
+    elif final_score >= 5:
+        overall_rating = "Good"
+        recommendation = "Consider"
+    else:
+        overall_rating = "Needs Improvement"
+        recommendation = "Needs Improvement"
+
+    return {
+        "overall_rating": overall_rating,
+        "hiring_recommendation": recommendation,
+        "strengths": [
+            "Completed the full interview.",
+            "Engaged with the technical questions.",
+        ],
+        "areas_for_improvement": [
+            "Give more detailed technical explanations.",
+            "Support answers with concrete examples.",
+        ],
+        "recommended_topics": [
+            "Core concepts",
+            "Practical examples",
+        ],
+        "final_feedback": (
+            "Keep practicing concise, structured explanations of technical concepts and "
+            "include an example when possible."
+        ),
+    }
+
+
 # ==========================================
 # Generate First Interview Question
 # ==========================================
@@ -108,6 +209,13 @@ def evaluate_answer(
     Q4 -> Project experience
     Q5 -> Project follow-up
     """
+
+    if not use_remote_evaluation():
+        return fallback_evaluation(
+            topic=topic,
+            answer=answer,
+            question_count=question_count,
+        )
 
     # ==========================================
     # IMPORTANT:
@@ -455,6 +563,9 @@ def generate_final_report(
     Generate an overall interview report using
     the candidate's complete interview history.
     """
+
+    if not use_remote_evaluation():
+        return fallback_final_report(final_score)
 
     # ==========================================
     # Format Interview History
