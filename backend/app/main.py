@@ -40,14 +40,14 @@ app.add_middleware(
 app.include_router(interview_router)
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def home():
     return {
         "message": "AI Interview Coach API is running!"
     }
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {
         "status": "healthy"
