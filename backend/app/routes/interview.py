@@ -38,11 +38,11 @@ router = APIRouter(
 def start_interview(
     request: InterviewStartRequest,
 ):
-
-    # TEMPORARY TEST QUESTION
-    question = (
-        f"Explain what Retrieval-Augmented Generation (RAG) is "
-        f"and describe how it works."
+    question = generate_interview_question(
+        candidate_name=request.candidate_name,
+        role=request.role,
+        topic=request.topic,
+        difficulty=request.difficulty,
     )
 
     # Create interview session
@@ -65,6 +65,64 @@ def start_interview(
         question=question,
     )
 
+
+# ==========================================
+# Submit Interview Answer
+# ==========================================
+@router.post(
+    "/answer",
+    response_model=InterviewAnswerResponse,
+)
+def submit_interview_answer(
+    request: InterviewAnswerRequest,
+):
+    interview = get_interview(
+        request.interview_id
+    )
+
+    if interview is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview session not found.",
+        )
+
+    if interview["is_complete"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Interview already completed.",
+        )
+
+    try:
+        evaluation = evaluate_answer(
+            role=interview["role"],
+            topic=interview["topic"],
+            difficulty=interview["difficulty"],
+            question=interview["current_question"],
+            answer=request.answer,
+            question_count=interview["question_count"],
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Failed to evaluate answer. "
+                "Please try again."
+            ),
+        ) from error
+
+    next_question = evaluation.get(
+        "next_question"
+    )
+
+    save_answer(
+        interview_id=request.interview_id,
+        answer=request.answer,
+        score=evaluation["score"],
+        feedback=evaluation["feedback"],
+        next_question=next_question,
+    )
+
     # ==========================================
     # Check Interview Completion
     # ==========================================
@@ -78,6 +136,10 @@ def start_interview(
     # ==========================================
 
     if complete:
+
+        interview = get_interview(
+            request.interview_id
+        )
 
         final_score = calculate_final_score(
             request.interview_id
