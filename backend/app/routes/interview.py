@@ -31,7 +31,6 @@ router = APIRouter(
 # ==========================================
 # Start Interview
 # ==========================================
-
 @router.post(
     "/start",
     response_model=InterviewStartResponse,
@@ -40,12 +39,10 @@ def start_interview(
     request: InterviewStartRequest,
 ):
 
-    # Generate first interview question
-    question = generate_interview_question(
-        candidate_name=request.candidate_name,
-        role=request.role,
-        topic=request.topic,
-        difficulty=request.difficulty,
+    # TEMPORARY TEST QUESTION
+    question = (
+        f"Explain what Retrieval-Augmented Generation (RAG) is "
+        f"and describe how it works."
     )
 
     # Create interview session
@@ -58,94 +55,14 @@ def start_interview(
     )
 
     greeting = (
-    f"Hello {request.candidate_name}! "
-    f"Welcome to your {request.role} mock interview."
+        f"Hello {request.candidate_name}! "
+        f"Welcome to your {request.role} mock interview."
     )
 
     return InterviewStartResponse(
         interview_id=interview_id,
         greeting=greeting,
         question=question,
-    )
-
-
-# ==========================================
-# Submit Answer
-# ==========================================
-
-@router.post(
-    "/answer",
-    response_model=InterviewAnswerResponse,
-)
-def submit_answer(
-    request: InterviewAnswerRequest,
-):
-
-    # ==========================================
-    # Get Interview Session
-    # ==========================================
-
-    interview = get_interview(
-        request.interview_id
-    )
-
-    if interview is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Interview not found",
-        )
-
-    # ==========================================
-    # Prevent Answers After Completion
-    # ==========================================
-
-    if interview["is_complete"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Interview is already complete.",
-        )
-
-    # ==========================================
-    # Check if Current Question is Final Question
-    # ==========================================
-
-    is_final_question = (
-        interview["question_count"]
-        >= interview["max_questions"]
-    )
-
-    # ==========================================
-    # Evaluate Candidate Answer
-    # ==========================================
-
-    evaluation = evaluate_answer(
-        role=interview["role"],
-        topic=interview["topic"],
-        difficulty=interview["difficulty"],
-        question=interview["current_question"],
-        answer=request.answer,
-        question_count=interview["question_count"],
-    )
-
-    # ==========================================
-    # Decide Next Question
-    # ==========================================
-
-    if is_final_question:
-        next_question = None
-    else:
-        next_question = evaluation["next_question"]
-
-    # ==========================================
-    # Save Candidate Answer
-    # ==========================================
-
-    save_answer(
-        interview_id=request.interview_id,
-        answer=request.answer,
-        score=evaluation["score"],
-        feedback=evaluation["feedback"],
-        next_question=next_question,
     )
 
     # ==========================================

@@ -39,61 +39,47 @@ def generate_interview_question(
     difficulty: str,
 ) -> str:
     """
-    Generate the first interview question using
-    RAG context retrieved from the interview
-    knowledge base.
+    Generate the first interview question.
+
+    For deployment reliability, the first question uses
+    a predefined question based on the selected topic.
+
+    This prevents the interview from being blocked by
+    RAG or OpenAI API calls when the user clicks
+    "Start Interview".
     """
 
-    # Retrieve relevant interview material
-    context = get_interview_context(
-        role=role,
-        difficulty=difficulty,
-        topic=topic,
-        k=3,
+    fallback_questions = {
+        "RAG": (
+            "Explain what Retrieval-Augmented Generation (RAG) "
+            "is and describe how it works."
+        ),
+
+        "LLM Fundamentals": (
+            "What is a Large Language Model (LLM), "
+            "and what is it used for?"
+        ),
+
+        "Machine Learning": (
+            "What is the difference between supervised "
+            "and unsupervised learning?"
+        ),
+
+        "Deep Learning": (
+            "What is a neural network, and how does it learn?"
+        ),
+
+        "NLP": (
+            "What is Natural Language Processing (NLP), "
+            "and what are some common applications?"
+        ),
+    }
+
+    return fallback_questions.get(
+        topic,
+        f"What are the fundamental concepts of {topic}, "
+        f"and why are they important?"
     )
-
-    user_prompt = f"""
-You are conducting a technical interview.
-Candidate Name:
-{candidate_name}
-
-Candidate Role:
-{role}
-
-Interview Topic:
-{topic}
-
-Difficulty:
-{difficulty}
-
-Below is reference material retrieved from the
-interview knowledge base.
-
-REFERENCE MATERIAL:
--------------------
-{context}
--------------------
-
-Using the reference material, generate ONE interview question.
-
-Requirements:
-
-- Match the requested role.
-- Match the requested difficulty.
-- Stay relevant to the requested topic.
-- Use the reference material as grounding.
-- Do not provide the answer.
-- Do not mention the reference material.
-- Ask only one clear interview question.
-"""
-
-    response = client.responses.create(
-        model="gpt-5-mini",
-        instructions=INTERVIEWER_SYSTEM_PROMPT,
-        input=user_prompt,
-    )
-
-    return response.output_text.strip()
 
 
 # ==========================================
@@ -134,7 +120,7 @@ def evaluate_answer(
     )
 
     # ==========================================
-    # Decide what type of question comes next
+    # Decide Next Question Type
     # ==========================================
 
     if question_count == 3:
@@ -153,15 +139,15 @@ Question 4 MUST be a project-experience question.
 
 Adapt the project question to the selected role.
 
-For AI_Engineer:
+For AI Engineer:
 Ask about ONE AI, LLM, RAG, Generative AI, NLP,
 or related AI project the candidate has worked on.
 
-For ML_Engineer:
+For ML Engineer:
 Ask about ONE machine learning project the candidate
 has worked on.
 
-For Data_Scientist:
+For Data Scientist:
 Ask about ONE data science, analytics, experimentation,
 or predictive modeling project the candidate has worked on.
 
@@ -324,7 +310,6 @@ Evaluate based on:
 5. Clarity of explanation
 6. Depth appropriate for the selected difficulty
 
-
 NEXT QUESTION INSTRUCTION:
 --------------------------
 {next_question_instruction}
@@ -400,17 +385,25 @@ Rules for the JSON response:
             f"{missing_fields}"
         )
 
-    # Ensure score is an integer
+    # ==========================================
+    # Ensure Score Is Integer
+    # ==========================================
+
     try:
         evaluation["score"] = int(
             evaluation["score"]
         )
+
     except (TypeError, ValueError) as error:
+
         raise ValueError(
             "Evaluation score must be an integer."
         ) from error
 
-    # Keep score within 0-10
+    # ==========================================
+    # Keep Score Within 0-10
+    # ==========================================
+
     evaluation["score"] = max(
         0,
         min(10, evaluation["score"]),
@@ -418,9 +411,6 @@ Rules for the JSON response:
 
     return evaluation
 
-# ==========================================
-# Generate Final Interview Report
-# ==========================================
 
 # ==========================================
 # Generate Final Interview Report
@@ -437,86 +427,6 @@ def generate_final_report(
     Generate an overall interview report using
     the candidate's complete interview history.
     """
-
-    user_prompt = f"""
-You are generating the final report for a completed technical interview.
-
-Candidate Role:
-{role}
-
-Interview Topic:
-{topic}
-
-Difficulty:
-{difficulty}
-
-Final Score:
-{final_score}/10
-
-Interview History:
-{json.dumps(history, indent=2)}
-
-Review the candidate's overall interview performance.
-
-Consider:
-
-- Technical knowledge
-- Accuracy
-- Completeness
-- Communication
-- Practical understanding
-- Project experience (if discussed)
-- Consistency across all answers
-
-Return ONLY valid JSON with exactly these fields:
-
-{{
-    "overall_rating": "Excellent | Good | Fair | Needs Improvement",
-
-    "hiring_recommendation": "Strong Hire | Hire | Borderline Hire | No Hire",
-
-    "strengths": [
-        "Strength 1",
-        "Strength 2",
-        "Strength 3"
-    ],
-
-    "areas_for_improvement": [
-        "Improvement 1",
-        "Improvement 2",
-        "Improvement 3"
-    ],
-
-    "recommended_topics": [
-        "Topic 1",
-        "Topic 2",
-        "Topic 3"
-    ],
-
-    "final_feedback": "Provide a concise overall interview summary."
-}}
-
-Rules:
-
-- Return ONLY valid JSON.
-- Do not include Markdown.
-- Do not include ```json.
-- Do not include additional text.
-- Keep strengths concise.
-- Keep improvement points concise.
-- Recommend 3 to 5 study topics.
-- Keep the final feedback under 150 words.
-"""
-
-    response = client.responses.create(
-        model="gpt-5-mini",
-        instructions=EVALUATION_SYSTEM_PROMPT,
-        input=user_prompt,
-    )
-
-    result = response.output_text.strip()
-
-    return json.loads(result)
 
     # ==========================================
     # Format Interview History
@@ -563,12 +473,10 @@ Difficulty:
 Final Average Score:
 {final_score}/10
 
-
 COMPLETE INTERVIEW HISTORY:
 ---------------------------
 {history_text}
 ---------------------------
-
 
 Analyze the candidate's performance across the entire interview.
 
@@ -592,7 +500,6 @@ IMPORTANT:
 - Areas for improvement should contain 2 to 4 short points.
 - The final feedback should be concise and useful.
 
-
 Return ONLY valid JSON with exactly these fields:
 
 {{
@@ -606,7 +513,6 @@ Return ONLY valid JSON with exactly these fields:
     ],
     "final_feedback": "Overall interview feedback."
 }}
-
 
 JSON RULES:
 
@@ -673,6 +579,7 @@ JSON RULES:
     # ==========================================
 
     if not isinstance(report["strengths"], list):
+
         raise ValueError(
             "Final report strengths must be a list."
         )
@@ -681,6 +588,7 @@ JSON RULES:
         report["areas_for_improvement"],
         list,
     ):
+
         raise ValueError(
             "Final report areas_for_improvement "
             "must be a list."
@@ -690,6 +598,7 @@ JSON RULES:
         report["final_feedback"],
         str,
     ):
+
         raise ValueError(
             "Final report final_feedback "
             "must be a string."
