@@ -25,6 +25,11 @@ function Interview() {
             return;
         }
 
+        if (!state?.interview_id) {
+            alert("Interview session not found. Please start a new interview.");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -32,7 +37,7 @@ function Interview() {
                 "/interview/answer",
                 {
                     interview_id: state.interview_id,
-                    answer: answer,
+                    answer: answer.trim(),
                 }
             );
 
@@ -61,7 +66,9 @@ function Interview() {
             // NEXT QUESTION
             // ==========================================
 
-            setQuestion(data.next_question);
+            if (data.next_question) {
+                setQuestion(data.next_question);
+            }
 
             setQuestionNumber(
                 (previous) => previous + 1
@@ -76,6 +83,11 @@ function Interview() {
             );
 
             if (error.response) {
+                console.error(
+                    "Server response:",
+                    error.response.data
+                );
+
                 alert(
                     `Error ${error.response.status}: ${
                         error.response.data?.detail ||
@@ -84,7 +96,7 @@ function Interview() {
                 );
             } else {
                 alert(
-                    "Could not submit answer. Please check that the backend is running."
+                    "Could not submit answer. Please check your internet connection and try again."
                 );
             }
 
@@ -188,9 +200,10 @@ function Interview() {
                             <div
                                 className="bg-blue-600 h-2 rounded-full transition-all duration-500"
                                 style={{
-                                    width: `${
-                                        (questionNumber / maxQuestions) * 100
-                                    }%`,
+                                    width: `${Math.min(
+                                        (questionNumber / maxQuestions) * 100,
+                                        100
+                                    )}%`,
                                 }}
                             />
 
