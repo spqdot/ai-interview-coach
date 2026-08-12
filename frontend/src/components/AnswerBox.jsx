@@ -90,7 +90,7 @@ function AnswerBox({
     };
 
     useEffect(() => {
-        if (interviewStoppedRef?.current) {
+        if (!voiceOnly || interviewStoppedRef?.current) {
             return undefined;
         }
 
@@ -194,7 +194,7 @@ function AnswerBox({
                 // Recognition can already be stopped during question changes.
             }
         };
-    }, [speechLanguage, questionKey, setAnswer]);
+    }, [speechLanguage, questionKey, setAnswer, voiceOnly]);
 
     useEffect(() => {
         if (interviewStoppedRef?.current) {
@@ -253,25 +253,11 @@ function AnswerBox({
                 {voiceOnly ? "Your response" : "Your Answer"}
             </label>
 
-            {voiceSupported ? (
+            {voiceOnly && voiceSupported ? (
                 <div className="mb-4">
-                    {voiceOnly ? (
-                        <div className="voice-status p-3 text-center">
-                            {isListening ? "🔴 Listening..." : "Interviewer is preparing your turn..."}
-                        </div>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                shouldListenRef.current = true;
-                                recognitionRef.current?.start();
-                            }}
-                            disabled={loading || isListening}
-                            className="voice-button w-full border border-blue-600 text-blue-700 rounded-lg p-3 hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400 disabled:bg-gray-100"
-                        >
-                            {isListening ? "🔴 Listening..." : "🎤 Speak"}
-                        </button>
-                    )}
+                    <div className="voice-status p-3 text-center">
+                        {isListening ? "🔴 Listening..." : "Interviewer is preparing your turn..."}
+                    </div>
 
                     {isListening && voiceOnly && (
                         <div className="grid grid-cols-2 gap-3 mt-3">
@@ -293,11 +279,11 @@ function AnswerBox({
                         </div>
                     )}
                 </div>
-            ) : (
+            ) : voiceOnly ? (
                 <p className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
                     Voice input is not supported in this browser. Please type your answer instead.
                 </p>
-            )}
+            ) : null}
 
             {voiceMessage && (
                 <p className="mb-4 text-sm text-red-600">
@@ -317,10 +303,10 @@ function AnswerBox({
                 <textarea
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
-                    placeholder={isListening ? "Your live speech transcript will appear here..." : "Type your answer here..."}
+                    placeholder="Type your answer here..."
                     rows={7}
                     className="w-full border rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={loading || isListening}
+                    disabled={loading}
                 />
             )}
 

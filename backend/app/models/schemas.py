@@ -42,6 +42,16 @@ class LanguageMismatchResponse(BaseModel):
     reason: str | None = None
 
 
+class ConversationTurnRequest(BaseModel):
+    interview_id: str
+    transcript: str
+
+
+class ConversationTurnResponse(BaseModel):
+    is_conversation_turn: bool
+    reply: str | None = None
+
+
 class InterviewAnswerResponse(BaseModel):
     score: int
     feedback: str

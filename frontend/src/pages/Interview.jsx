@@ -33,6 +33,7 @@ function Interview() {
     const [isTerminated, setIsTerminated] = useState(false);
     const [speechMessage, setSpeechMessage] = useState("");
     const [availableVoices, setAvailableVoices] = useState([]);
+    const [conversationReply, setConversationReply] = useState("");
 
     const [questionNumber, setQuestionNumber] = useState(1);
     const speechRef = useRef(null);
@@ -43,9 +44,11 @@ function Interview() {
 
     const maxQuestions = 5;
     const isVoiceInterview = state?.mode === "voice";
-    const interviewerMessage = isVoiceInterview && questionNumber === 1
-        ? `${state?.greeting || ""} ${question}`.trim()
-        : question;
+    const interviewerMessage = conversationReply
+        ? `${conversationReply} ${question}`.trim()
+        : isVoiceInterview && questionNumber === 1
+            ? `${state?.greeting || ""} ${question}`.trim()
+            : question;
 
     useEffect(() => {
         if (!("speechSynthesis" in window) || !isVoiceInterview) {
@@ -214,6 +217,19 @@ function Interview() {
                     stopInterview("language-mismatch", false);
                     return;
                 }
+
+                const conversationResponse = await api.post("/interview/conversation", {
+                    interview_id: state.interview_id,
+                    transcript: answerText,
+                });
+
+                if (conversationResponse.data.is_conversation_turn) {
+                    if (!terminatedRef.current) {
+                        setAnswer("");
+                        setConversationReply(conversationResponse.data.reply);
+                    }
+                    return;
+                }
             }
 
             if (terminatedRef.current) {
@@ -259,6 +275,7 @@ function Interview() {
 
             if (data.next_question) {
                 setAutoListen(false);
+                setConversationReply("");
                 setQuestion(data.next_question);
             }
 
@@ -510,7 +527,7 @@ function Interview() {
                         onStopInterview={stopInterview}
                         loading={loading}
                         questionNumber={questionNumber}
-                        questionKey={`${questionNumber}-${speechLanguage}`}
+                        questionKey={`${questionNumber}-${speechLanguage}-${conversationReply}`}
                         speechLanguage={speechLanguage}
                         voiceOnly={isVoiceInterview}
                         autoStart={isVoiceInterview && autoListen && !isInterviewerSpeaking}

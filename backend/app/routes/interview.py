@@ -7,6 +7,8 @@ from backend.app.models.schemas import (
     InterviewAnswerResponse,
     LanguageMismatchRequest,
     LanguageMismatchResponse,
+    ConversationTurnRequest,
+    ConversationTurnResponse,
     InterviewStopRequest,
 )
 from backend.app.services.llm_service import (
@@ -26,6 +28,7 @@ from backend.app.services.interview_service import (
 )
 from backend.app.services.language_mismatch_service import is_language_mismatch
 from backend.app.services.voice_content_service import localized_greeting
+from backend.app.services.conversation_service import build_conversation_reply
 
 
 router = APIRouter(
@@ -164,6 +167,42 @@ def check_language_mismatch(
         )
 
     return LanguageMismatchResponse(language_mismatch=False)
+
+
+# ==========================================
+# Voice Conversation Turn
+# ==========================================
+@router.post(
+    "/conversation",
+    response_model=ConversationTurnResponse,
+)
+def handle_conversation_turn(
+    request: ConversationTurnRequest,
+):
+    interview = get_interview(request.interview_id)
+
+    if interview is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview session not found.",
+        )
+
+    if interview["is_complete"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Interview already completed.",
+        )
+
+    reply = build_conversation_reply(
+        candidate_name=interview["candidate_name"],
+        current_question=interview["current_question"],
+        transcript=request.transcript,
+    )
+
+    return ConversationTurnResponse(
+        is_conversation_turn=reply is not None,
+        reply=reply,
+    )
 
 
 # ==========================================
