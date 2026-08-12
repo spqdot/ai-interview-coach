@@ -50,6 +50,7 @@ class ConversationTurnRequest(BaseModel):
 class ConversationTurnResponse(BaseModel):
     is_conversation_turn: bool
     reply: str | None = None
+    technical_answer: str | None = None
 
 
 class InterviewAnswerResponse(BaseModel):

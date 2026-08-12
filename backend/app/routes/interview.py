@@ -193,7 +193,7 @@ def handle_conversation_turn(
             detail="Interview already completed.",
         )
 
-    reply = build_conversation_reply(
+    reply, technical_answer = build_conversation_reply(
         candidate_name=interview["candidate_name"],
         current_question=interview["current_question"],
         transcript=request.transcript,
@@ -202,6 +202,7 @@ def handle_conversation_turn(
     return ConversationTurnResponse(
         is_conversation_turn=reply is not None,
         reply=reply,
+        technical_answer=technical_answer,
     )
 
 

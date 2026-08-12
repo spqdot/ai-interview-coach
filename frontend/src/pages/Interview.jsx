@@ -225,8 +225,42 @@ function Interview() {
 
                 if (conversationResponse.data.is_conversation_turn) {
                     if (!terminatedRef.current) {
-                        setAnswer("");
                         setConversationReply(conversationResponse.data.reply);
+
+                        if (conversationResponse.data.technical_answer) {
+                            const response = await api.post(
+                                "/interview/answer",
+                                {
+                                    interview_id: state.interview_id,
+                                    answer: conversationResponse.data.technical_answer,
+                                }
+                            );
+
+                            if (terminatedRef.current) {
+                                return;
+                            }
+
+                            const data = response.data;
+                            if (data.is_complete) {
+                                navigate("/result", {
+                                    state: {
+                                        ...data,
+                                        role: state.role,
+                                        topic: state.topic,
+                                        difficulty: state.difficulty,
+                                    },
+                                });
+                                return;
+                            }
+
+                            if (data.next_question) {
+                                setAutoListen(false);
+                                setQuestion(data.next_question);
+                                setQuestionNumber((previous) => previous + 1);
+                            }
+                        }
+
+                        setAnswer("");
                     }
                     return;
                 }
