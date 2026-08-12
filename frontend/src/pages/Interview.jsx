@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../services/api";
@@ -26,8 +26,30 @@ function Interview() {
     const [loading, setLoading] = useState(false);
 
     const [questionNumber, setQuestionNumber] = useState(1);
+    const speechRef = useRef(null);
 
     const maxQuestions = 5;
+
+    const speakQuestion = () => {
+        if (!("speechSynthesis" in window) || !question) {
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(question);
+        utterance.lang = "en-US";
+        utterance.rate = 0.92;
+        speechRef.current = utterance;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    useEffect(() => {
+        speakQuestion();
+
+        return () => {
+            window.speechSynthesis?.cancel();
+        };
+    }, [question]);
 
     const stopInterview = async () => {
         if (loading || !state?.interview_id) {
@@ -293,6 +315,16 @@ function Interview() {
                             <p className="text-xl font-semibold text-gray-900 leading-relaxed">
                                 {question}
                             </p>
+
+                            {"speechSynthesis" in window && (
+                                <button
+                                    type="button"
+                                    onClick={speakQuestion}
+                                    className="mt-5 text-sm font-semibold text-blue-700 hover:text-blue-900"
+                                >
+                                    Listen to question again
+                                </button>
+                            )}
 
                         </div>
 

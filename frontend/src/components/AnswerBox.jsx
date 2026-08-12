@@ -55,7 +55,7 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
                     submitAfterStopRef.current = true;
                     recognition.stop();
                 }
-            }, 1800);
+            }, 4500);
         };
 
         recognition.onerror = (event) => {
@@ -136,6 +136,17 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
         setVoiceMessage("Voice input cancelled. You can type your answer instead.");
     };
 
+    const finishSpeaking = () => {
+        if (!liveTranscriptRef.current.trim()) {
+            setVoiceMessage("No speech was detected. Please continue speaking or type your answer.");
+            return;
+        }
+
+        clearTimeout(pauseTimerRef.current);
+        submitAfterStopRef.current = true;
+        recognitionRef.current?.stop();
+    };
+
     return (
         <div className="answer-box mt-6">
 
@@ -155,13 +166,23 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
                     </button>
 
                     {isListening && (
-                        <button
-                            type="button"
-                            onClick={cancelListening}
-                            className="w-full mt-2 text-sm text-gray-600 underline"
-                        >
-                            Stop / Cancel
-                        </button>
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                            <button
+                                type="button"
+                                onClick={finishSpeaking}
+                                className="rounded-lg bg-teal-700 text-white text-sm font-semibold py-2 hover:bg-teal-800"
+                            >
+                                I'm finished speaking
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={cancelListening}
+                                className="rounded-lg border border-gray-300 text-sm text-gray-600 py-2 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     )}
                 </div>
             ) : (
