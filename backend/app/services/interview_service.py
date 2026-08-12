@@ -18,6 +18,7 @@ def create_interview(
     topic: str,
     difficulty: str,
     first_question: str,
+    language: str = "en-US",
     max_questions: int = 5,
 ):
 
@@ -28,6 +29,7 @@ def create_interview(
         "role": role,
         "topic": topic,
         "difficulty": difficulty,
+        "language": language,
         "current_question": first_question,
         "question_count": 1,
         "max_questions": max_questions,

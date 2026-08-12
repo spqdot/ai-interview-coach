@@ -11,6 +11,7 @@ from backend.app.prompts.interviewer_prompt import (
 from backend.app.prompts.evaluation_prompt import (
     EVALUATION_SYSTEM_PROMPT,
 )
+from backend.app.services.voice_content_service import localize_question
 
 
 # ==========================================
@@ -37,6 +38,7 @@ def fallback_evaluation(
     topic: str,
     answer: str,
     question_count: int,
+    language: str = "en-US",
 ) -> dict:
     normalized_answer = answer.strip().lower()
     word_count = len(answer.split())
@@ -197,7 +199,7 @@ def fallback_evaluation(
     return {
         "score": score,
         "feedback": feedback,
-        "next_question": next_question,
+        "next_question": localize_question(next_question, language),
     }
 
 
@@ -243,6 +245,7 @@ def generate_interview_question(
     role: str,
     topic: str,
     difficulty: str,
+    language: str = "en-US",
 ) -> str:
     """
     Generate the first interview question.
@@ -281,11 +284,12 @@ def generate_interview_question(
         ),
     }
 
-    return fallback_questions.get(
+    question = fallback_questions.get(
         topic,
         f"What are the fundamental concepts of {topic}, "
         f"and why are they important?"
     )
+    return localize_question(question, language)
 
 
 # ==========================================
@@ -299,6 +303,7 @@ def evaluate_answer(
     question: str,
     answer: str,
     question_count: int,
+    language: str = "en-US",
 ) -> dict:
     """
     Evaluate the candidate's answer using RAG
@@ -319,6 +324,7 @@ def evaluate_answer(
             topic=topic,
             answer=answer,
             question_count=question_count,
+            language=language,
         )
 
     # ==========================================

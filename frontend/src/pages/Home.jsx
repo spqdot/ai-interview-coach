@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
-import { VOICE_LANGUAGES } from "../voiceLanguages";
+import { VOICE_LANGUAGES, VOICE_LANGUAGE_LABELS } from "../voiceLanguages";
 
 function Home() {
     const [candidateName, setCandidateName] = useState("");
@@ -29,6 +29,7 @@ function Home() {
                 role: role,
                 topic: topic,
                 difficulty: difficulty,
+                language: mode === "voice" ? speechLanguage : undefined,
             });
 
             console.log("Interview started:", response.data);
@@ -248,7 +249,7 @@ function Home() {
                     {mode === "voice" && (
                         <div>
                             <label className="field-label">
-                                Voice Language
+                                Voice Interview Language
                             </label>
 
                             <select
@@ -258,7 +259,7 @@ function Home() {
                             >
                                 {Object.entries(VOICE_LANGUAGES).map(([language, locale]) => (
                                     <option key={locale} value={locale}>
-                                        {language}
+                                            {VOICE_LANGUAGE_LABELS[locale]}
                                     </option>
                                 ))}
                             </select>
@@ -279,7 +280,7 @@ function Home() {
                         {loading
                             ? "Starting Interview..."
                             : mode === "voice"
-                                ? "Start Real Interview"
+                                ? "🎤 START INTERVIEW"
                                 : "Start Written Interview"
                         }
                     </button>

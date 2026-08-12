@@ -9,6 +9,7 @@ class InterviewStartRequest(BaseModel):
     role: str
     topic: str
     difficulty: str
+    language: str | None = None
 
 
 class InterviewStartResponse(BaseModel):
@@ -28,6 +29,17 @@ class InterviewAnswerRequest(BaseModel):
 
 class InterviewStopRequest(BaseModel):
     interview_id: str
+
+
+class LanguageMismatchRequest(BaseModel):
+    interview_id: str
+    transcript: str
+    selected_language: str | None = None
+
+
+class LanguageMismatchResponse(BaseModel):
+    language_mismatch: bool
+    reason: str | None = None
 
 
 class InterviewAnswerResponse(BaseModel):

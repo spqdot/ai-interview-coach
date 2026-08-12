@@ -27,6 +27,26 @@ function Result() {
         );
     }
 
+    if (state.is_language_mismatch) {
+        return (
+            <div className="result-page min-h-screen flex items-center justify-center px-4">
+                <div className="result-card bg-white p-8 rounded-xl shadow-lg text-center max-w-xl">
+                    <h1 className="text-3xl font-bold">Interview ended</h1>
+                    <p className="text-gray-700 mt-4">{state.reason}</p>
+                    <p className="text-gray-500 mt-2">Selected language: {state.language}</p>
+                    <div className="flex flex-wrap justify-center gap-3 mt-7">
+                        <button onClick={() => navigate("/")} className="new-interview-button text-white px-6 py-3 rounded-lg">
+                            Choose another language
+                        </button>
+                        <button onClick={() => navigate("/")} className="border border-blue-600 text-blue-700 px-6 py-3 rounded-lg">
+                            Restart Interview
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="result-page min-h-screen py-10">
 

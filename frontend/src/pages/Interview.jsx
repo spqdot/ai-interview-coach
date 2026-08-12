@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../services/api";
 import AnswerBox from "../components/AnswerBox";
-import { VOICE_LANGUAGES } from "../voiceLanguages";
+import { VOICE_LANGUAGES, VOICE_LANGUAGE_LABELS } from "../voiceLanguages";
 
 const stopPhrases = [
     "i do not want to continue",
@@ -30,16 +30,42 @@ function Interview() {
     );
     const [isInterviewerSpeaking, setIsInterviewerSpeaking] = useState(false);
     const [autoListen, setAutoListen] = useState(false);
+    const [isTerminated, setIsTerminated] = useState(false);
+    const [speechMessage, setSpeechMessage] = useState("");
+    const [availableVoices, setAvailableVoices] = useState([]);
 
     const [questionNumber, setQuestionNumber] = useState(1);
     const speechRef = useRef(null);
     const speechStartTimerRef = useRef(null);
+    const terminatedRef = useRef(false);
+    const answerRequestRef = useRef(false);
 
     const maxQuestions = 5;
     const isVoiceInterview = state?.mode === "voice";
     const interviewerMessage = isVoiceInterview && questionNumber === 1
         ? `${state?.greeting || `Welcome to your ${state?.role || "technical"} interview.`} Today we will discuss ${state?.topic || "your selected topic"}. ${question}`
         : question;
+
+    useEffect(() => {
+        if (!("speechSynthesis" in window) || !isVoiceInterview) {
+            return undefined;
+        }
+
+        const loadVoices = () => setAvailableVoices(window.speechSynthesis.getVoices());
+        loadVoices();
+        window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+
+        return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+    }, [isVoiceInterview]);
+
+    const startListeningAfterSpeech = () => {
+        speechStartTimerRef.current = setTimeout(() => {
+            if (!terminatedRef.current) {
+                setIsInterviewerSpeaking(false);
+                setAutoListen(true);
+            }
+        }, 400);
+    };
 
     const speakQuestion = () => {
         if (!("speechSynthesis" in window) || !interviewerMessage || !isVoiceInterview) {
@@ -50,19 +76,25 @@ function Interview() {
         setAutoListen(false);
         setIsInterviewerSpeaking(true);
         window.speechSynthesis.cancel();
+
+        const portugueseVoice = availableVoices.find((voice) =>
+            voice.lang.toLowerCase().startsWith("pt-pt")
+        );
+
+        if (speechLanguage === "pt-PT" && !portugueseVoice) {
+            setSpeechMessage("This browser does not provide a Portuguese (Portugal) voice. It will not substitute a Brazilian Portuguese voice.");
+            startListeningAfterSpeech();
+            return;
+        }
+
         const utterance = new SpeechSynthesisUtterance(interviewerMessage);
         utterance.lang = speechLanguage;
+        utterance.voice = speechLanguage === "pt-PT"
+            ? portugueseVoice
+            : availableVoices.find((voice) => voice.lang.toLowerCase().startsWith(speechLanguage.toLowerCase()));
         utterance.rate = 0.92;
-        utterance.onend = () => {
-            speechStartTimerRef.current = setTimeout(() => {
-                setIsInterviewerSpeaking(false);
-                setAutoListen(true);
-            }, 400);
-        };
-        utterance.onerror = () => {
-            setIsInterviewerSpeaking(false);
-            setAutoListen(true);
-        };
+        utterance.onend = startListeningAfterSpeech;
+        utterance.onerror = startListeningAfterSpeech;
         speechRef.current = utterance;
         window.speechSynthesis.speak(utterance);
     };
@@ -74,10 +106,10 @@ function Interview() {
             clearTimeout(speechStartTimerRef.current);
             window.speechSynthesis?.cancel();
         };
-    }, [interviewerMessage, isVoiceInterview, speechLanguage]);
+    }, [interviewerMessage, isVoiceInterview, speechLanguage, availableVoices]);
 
     const stopInterview = async () => {
-        if (loading || !state?.interview_id) {
+        if (loading || !state?.interview_id || isTerminated) {
             return;
         }
 
@@ -107,7 +139,7 @@ function Interview() {
     const submitAnswer = async (submittedAnswer = answer) => {
         const answerText = submittedAnswer.trim();
 
-        if (loading) {
+        if (loading || answerRequestRef.current || terminatedRef.current) {
             return;
         }
 
@@ -126,9 +158,39 @@ function Interview() {
             return;
         }
 
+        answerRequestRef.current = true;
         setLoading(true);
 
         try {
+            if (isVoiceInterview) {
+                const mismatchResponse = await api.post("/interview/language-mismatch", {
+                    interview_id: state.interview_id,
+                    transcript: answerText,
+                    selected_language: speechLanguage,
+                });
+
+                if (mismatchResponse.data.language_mismatch) {
+                    terminatedRef.current = true;
+                    clearTimeout(speechStartTimerRef.current);
+                    window.speechSynthesis?.cancel();
+                    setAutoListen(false);
+                    setIsInterviewerSpeaking(false);
+                    setIsTerminated(true);
+
+                    navigate("/result", {
+                        state: {
+                            is_language_mismatch: true,
+                            reason: mismatchResponse.data.reason,
+                            language: VOICE_LANGUAGE_LABELS[speechLanguage],
+                            role: state.role,
+                            topic: state.topic,
+                            difficulty: state.difficulty,
+                        },
+                    });
+                    return;
+                }
+            }
+
             const response = await api.post(
                 "/interview/answer",
                 {
@@ -198,6 +260,7 @@ function Interview() {
             }
 
         } finally {
+            answerRequestRef.current = false;
             setLoading(false);
         }
     };
@@ -282,13 +345,14 @@ function Interview() {
                                     onChange={(event) => {
                                         setAutoListen(false);
                                         window.speechSynthesis?.cancel();
+                                        setSpeechMessage("");
                                         setSpeechLanguage(event.target.value);
                                     }}
                                     disabled={loading || isInterviewerSpeaking}
                                 >
                                     {Object.entries(VOICE_LANGUAGES).map(([language, locale]) => (
                                         <option key={locale} value={locale}>
-                                            {language}
+                                            {VOICE_LANGUAGE_LABELS[locale]}
                                         </option>
                                     ))}
                                 </select>
@@ -397,7 +461,14 @@ function Interview() {
                         speechLanguage={speechLanguage}
                         voiceOnly={isVoiceInterview}
                         autoStart={isVoiceInterview && autoListen && !isInterviewerSpeaking}
+                        isTerminated={isTerminated}
                     />
+
+                    {speechMessage && (
+                        <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            {speechMessage}
+                        </p>
+                    )}
 
 
                     {/* ==========================================

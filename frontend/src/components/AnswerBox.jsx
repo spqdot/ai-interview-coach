@@ -19,6 +19,7 @@ function AnswerBox({
     speechLanguage = "en-US",
     voiceOnly = false,
     autoStart = false,
+    isTerminated = false,
 }) {
     const recognitionRef = useRef(null);
     const shouldListenRef = useRef(false);
@@ -125,7 +126,7 @@ function AnswerBox({
             shouldListenRef.current = false;
             recognition.abort();
         };
-    }, [speechLanguage, setAnswer]);
+    }, [speechLanguage, questionKey, setAnswer]);
 
     useEffect(() => {
         clearTimeout(retryTimerRef.current);
@@ -139,7 +140,19 @@ function AnswerBox({
     }, [questionKey, setAnswer]);
 
     useEffect(() => {
-        if (!voiceOnly || !autoStart || loading || !recognitionRef.current || submittingRef.current) {
+        if (!isTerminated) {
+            return;
+        }
+
+        clearTimeout(retryTimerRef.current);
+        shouldListenRef.current = false;
+        finishingRef.current = false;
+        recognitionRef.current?.abort();
+        setIsListening(false);
+    }, [isTerminated]);
+
+    useEffect(() => {
+        if (isTerminated || !voiceOnly || !autoStart || loading || !recognitionRef.current || submittingRef.current) {
             return;
         }
 
@@ -153,7 +166,7 @@ function AnswerBox({
         } catch (error) {
             setVoiceMessage("Speech recognition could not start. Please allow microphone access and reload the interview.");
         }
-    }, [autoStart, isListening, loading, questionKey, voiceOnly]);
+    }, [autoStart, isListening, isTerminated, loading, questionKey, voiceOnly]);
 
     const cancelListening = () => {
         shouldListenRef.current = false;

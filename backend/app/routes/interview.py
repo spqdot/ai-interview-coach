@@ -5,6 +5,8 @@ from backend.app.models.schemas import (
     InterviewStartResponse,
     InterviewAnswerRequest,
     InterviewAnswerResponse,
+    LanguageMismatchRequest,
+    LanguageMismatchResponse,
     InterviewStopRequest,
 )
 from backend.app.services.llm_service import (
@@ -22,6 +24,8 @@ from backend.app.services.interview_service import (
     calculate_final_score,
     get_question_scores,
 )
+from backend.app.services.language_mismatch_service import is_language_mismatch
+from backend.app.services.voice_content_service import localized_greeting
 
 
 router = APIRouter(
@@ -45,6 +49,7 @@ def start_interview(
         role=request.role,
         topic=request.topic,
         difficulty=request.difficulty,
+        language=request.language or "en-US",
     )
 
     # Create interview session
@@ -54,11 +59,13 @@ def start_interview(
         topic=request.topic,
         difficulty=request.difficulty,
         first_question=question,
+        language=request.language or "en-US",
     )
 
-    greeting = (
-        f"Hello {request.candidate_name}! "
-        f"Welcome to your {request.role} mock interview."
+    greeting = localized_greeting(
+        request.language or "en-US",
+        request.candidate_name,
+        request.role,
     )
 
     return InterviewStartResponse(
@@ -126,6 +133,40 @@ def stop_interview(
 
 
 # ==========================================
+# Stop On Voice Language Mismatch
+# ==========================================
+@router.post(
+    "/language-mismatch",
+    response_model=LanguageMismatchResponse,
+)
+def check_language_mismatch(
+    request: LanguageMismatchRequest,
+):
+    interview = get_interview(request.interview_id)
+
+    if interview is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview session not found.",
+        )
+
+    selected_language = request.selected_language or "en-US"
+    mismatch = is_language_mismatch(
+        selected_language=selected_language,
+        transcript=request.transcript,
+    )
+
+    if mismatch:
+        end_interview(request.interview_id)
+        return LanguageMismatchResponse(
+            language_mismatch=True,
+            reason="Selected interview language was not suitable for the candidate.",
+        )
+
+    return LanguageMismatchResponse(language_mismatch=False)
+
+
+# ==========================================
 # Submit Interview Answer
 # ==========================================
 @router.post(
@@ -159,6 +200,7 @@ def submit_interview_answer(
             question=interview["current_question"],
             answer=request.answer,
             question_count=interview["question_count"],
+            language=interview.get("language", "en-US"),
         )
 
     except Exception as error:
