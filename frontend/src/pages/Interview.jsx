@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../services/api";
 import AnswerBox from "../components/AnswerBox";
+import { VOICE_LANGUAGES } from "../voiceLanguages";
 
 const stopPhrases = [
     "i do not want to continue",
@@ -24,28 +25,44 @@ function Interview() {
 
     const [answer, setAnswer] = useState("");
     const [loading, setLoading] = useState(false);
-    const [voiceStage, setVoiceStage] = useState(
-        state?.mode === "voice" ? "ready" : "question"
+    const [speechLanguage, setSpeechLanguage] = useState(
+        state?.speechLanguage || "en-US"
     );
+    const [isInterviewerSpeaking, setIsInterviewerSpeaking] = useState(false);
+    const [autoListen, setAutoListen] = useState(false);
 
     const [questionNumber, setQuestionNumber] = useState(1);
     const speechRef = useRef(null);
+    const speechStartTimerRef = useRef(null);
 
     const maxQuestions = 5;
     const isVoiceInterview = state?.mode === "voice";
-    const speechLanguage = state?.speechLanguage || "en-US";
-    const readyPrompt = `Hi ${state?.candidate_name || "there"}, welcome to your ${state?.role || "technical"} interview. Today we will discuss ${state?.topic || "your selected topic"}. Are you ready to begin?`;
-    const interviewerMessage = voiceStage === "ready" ? readyPrompt : question;
+    const interviewerMessage = isVoiceInterview && questionNumber === 1
+        ? `${state?.greeting || `Welcome to your ${state?.role || "technical"} interview.`} Today we will discuss ${state?.topic || "your selected topic"}. ${question}`
+        : question;
 
     const speakQuestion = () => {
         if (!("speechSynthesis" in window) || !interviewerMessage || !isVoiceInterview) {
             return;
         }
 
+        clearTimeout(speechStartTimerRef.current);
+        setAutoListen(false);
+        setIsInterviewerSpeaking(true);
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(interviewerMessage);
         utterance.lang = speechLanguage;
         utterance.rate = 0.92;
+        utterance.onend = () => {
+            speechStartTimerRef.current = setTimeout(() => {
+                setIsInterviewerSpeaking(false);
+                setAutoListen(true);
+            }, 400);
+        };
+        utterance.onerror = () => {
+            setIsInterviewerSpeaking(false);
+            setAutoListen(true);
+        };
         speechRef.current = utterance;
         window.speechSynthesis.speak(utterance);
     };
@@ -54,6 +71,7 @@ function Interview() {
         speakQuestion();
 
         return () => {
+            clearTimeout(speechStartTimerRef.current);
             window.speechSynthesis?.cancel();
         };
     }, [interviewerMessage, isVoiceInterview, speechLanguage]);
@@ -95,12 +113,6 @@ function Interview() {
 
         if (!answerText) {
             alert("Please enter your answer before submitting.");
-            return;
-        }
-
-        if (isVoiceInterview && voiceStage === "ready") {
-            setAnswer("");
-            setVoiceStage("question");
             return;
         }
 
@@ -151,6 +163,7 @@ function Interview() {
             // ==========================================
 
             if (data.next_question) {
+                setAutoListen(false);
                 setQuestion(data.next_question);
             }
 
@@ -257,6 +270,31 @@ function Interview() {
                             </p>
                         </div>
 
+                        {isVoiceInterview && (
+                            <div>
+                                <label className="text-sm text-gray-500 block">
+                                    Voice Language
+                                </label>
+
+                                <select
+                                    className="form-control mt-1 p-2 text-sm"
+                                    value={speechLanguage}
+                                    onChange={(event) => {
+                                        setAutoListen(false);
+                                        window.speechSynthesis?.cancel();
+                                        setSpeechLanguage(event.target.value);
+                                    }}
+                                    disabled={loading || isInterviewerSpeaking}
+                                >
+                                    {Object.entries(VOICE_LANGUAGES).map(([language, locale]) => (
+                                        <option key={locale} value={locale}>
+                                            {language}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                     </div>
 
 
@@ -355,9 +393,10 @@ function Interview() {
                         onStopInterview={stopInterview}
                         loading={loading}
                         questionNumber={questionNumber}
-                        questionKey={`${questionNumber}-${voiceStage}`}
+                        questionKey={`${questionNumber}-${speechLanguage}`}
                         speechLanguage={speechLanguage}
                         voiceOnly={isVoiceInterview}
+                        autoStart={isVoiceInterview && autoListen && !isInterviewerSpeaking}
                     />
 
 
@@ -372,9 +411,9 @@ function Interview() {
                             {loading
                                 ? "Evaluating your answer and preparing the next question..."
                                 : isVoiceInterview
-                                    ? voiceStage === "ready"
-                                        ? "Answer the interviewer by voice to begin."
-                                        : "Speak naturally. Say when you are finished, or pause to submit automatically."
+                                    ? isInterviewerSpeaking
+                                        ? "The interviewer is asking the question. Your microphone will start automatically next."
+                                        : "Speak naturally. Say “That’s my answer” or press Finish Answer when you are done."
                                     : "Answer as you would in a real technical interview."
                             }
 

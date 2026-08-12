@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { VOICE_LANGUAGES } from "../voiceLanguages";
 
 function Home() {
     const [candidateName, setCandidateName] = useState("");
@@ -255,11 +256,11 @@ function Home() {
                                 value={speechLanguage}
                                 onChange={(e) => setSpeechLanguage(e.target.value)}
                             >
-                                <option value="en-US">English</option>
-                                <option value="bn-BD">Bengali</option>
-                                <option value="hi-IN">Hindi</option>
-                                <option value="es-ES">Spanish</option>
-                                <option value="fr-FR">French</option>
+                                {Object.entries(VOICE_LANGUAGES).map(([language, locale]) => (
+                                    <option key={locale} value={locale}>
+                                        {language}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     )}

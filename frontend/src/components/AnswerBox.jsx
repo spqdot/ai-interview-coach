@@ -1,23 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 
+const completionPhrases = [
+    /\b(that'?s my answer|i'?m finished|that'?s all|next question)\b[.!?\s]*$/i,
+    /\b(essa e a minha resposta|estou pronto|proxima pergunta)\b[.!?\s]*$/i,
+    /\b(das ist meine antwort|ich bin fertig|nachste frage)\b[.!?\s]*$/i,
+    /\b(esa es mi respuesta|he terminado|siguiente pregunta)\b[.!?\s]*$/i,
+    /\b(questa e la mia risposta|ho finito|prossima domanda)\b[.!?\s]*$/i,
+    /(我的回答是这样|我说完了|下一个问题)[。！!？?\s]*$/,
+];
+
 function AnswerBox({
     answer,
     setAnswer,
     onSubmit,
     onStopInterview,
     loading,
-    questionNumber,
     questionKey,
     speechLanguage = "en-US",
     voiceOnly = false,
+    autoStart = false,
 }) {
     const recognitionRef = useRef(null);
-    const pauseTimerRef = useRef(null);
-    const finalTranscriptRef = useRef("");
-    const liveTranscriptRef = useRef("");
-    const submitAfterStopRef = useRef(false);
-    const submissionStartedRef = useRef(false);
+    const shouldListenRef = useRef(false);
+    const finishingRef = useRef(false);
+    const submittingRef = useRef(false);
+    const transcriptRef = useRef("");
     const onSubmitRef = useRef(onSubmit);
+    const retryTimerRef = useRef(null);
 
     const [isListening, setIsListening] = useState(false);
     const [voiceMessage, setVoiceMessage] = useState("");
@@ -26,6 +35,19 @@ function AnswerBox({
     useEffect(() => {
         onSubmitRef.current = onSubmit;
     }, [onSubmit]);
+
+    const finishAnswer = () => {
+        const transcript = transcriptRef.current.trim();
+
+        if (!transcript) {
+            setVoiceMessage("No speech was detected. Please continue speaking.");
+            return;
+        }
+
+        shouldListenRef.current = false;
+        finishingRef.current = true;
+        recognitionRef.current?.stop();
+    };
 
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -39,122 +61,102 @@ function AnswerBox({
         recognition.lang = speechLanguage;
         recognition.continuous = true;
         recognition.interimResults = true;
+        recognition.onstart = () => setIsListening(true);
 
         recognition.onresult = (event) => {
-            let finalTranscript = finalTranscriptRef.current;
-            let interimTranscript = "";
+            let transcript = "";
 
-            for (let index = event.resultIndex; index < event.results.length; index += 1) {
-                const transcript = event.results[index][0].transcript;
-
-                if (event.results[index].isFinal) {
-                    finalTranscript += transcript;
-                } else {
-                    interimTranscript += transcript;
-                }
+            for (let index = 0; index < event.results.length; index += 1) {
+                transcript += event.results[index][0].transcript;
             }
 
-            finalTranscriptRef.current = finalTranscript;
-            const liveTranscript = `${finalTranscript} ${interimTranscript}`.trim();
-            liveTranscriptRef.current = liveTranscript;
-            setAnswer(liveTranscript);
+            const phrase = completionPhrases.find((pattern) => pattern.test(transcript.trim()));
+            const cleanTranscript = phrase
+                ? transcript.trim().replace(phrase, "").trim()
+                : transcript.trim();
 
-            clearTimeout(pauseTimerRef.current);
-            pauseTimerRef.current = setTimeout(() => {
-                if (liveTranscript && !submissionStartedRef.current) {
-                    submitAfterStopRef.current = true;
-                    recognition.stop();
-                }
-            }, 4500);
+            transcriptRef.current = cleanTranscript;
+            setAnswer(cleanTranscript);
+
+            if (phrase && cleanTranscript) {
+                finishAnswer();
+            }
         };
 
         recognition.onerror = (event) => {
-            clearTimeout(pauseTimerRef.current);
-            setIsListening(false);
-
             if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-                setVoiceMessage("Microphone permission was denied. Please type your answer instead.");
-            } else if (event.error === "no-speech") {
-                setVoiceMessage("No speech was detected. Please try again or type your answer.");
+                shouldListenRef.current = false;
+                setVoiceMessage("Microphone permission was denied. Please allow microphone access and reload the interview.");
             } else if (event.error !== "aborted") {
-                setVoiceMessage("Speech recognition could not continue. Please try again or type your answer.");
+                setVoiceMessage("Speech recognition paused. Listening will resume automatically.");
             }
         };
 
         recognition.onend = () => {
-            clearTimeout(pauseTimerRef.current);
             setIsListening(false);
 
-            if (submitAfterStopRef.current) {
-                submitAfterStopRef.current = false;
-                const transcript = liveTranscriptRef.current.trim();
+            if (finishingRef.current && !submittingRef.current) {
+                finishingRef.current = false;
+                const transcript = transcriptRef.current.trim();
 
-                if (transcript && !submissionStartedRef.current) {
-                    submissionStartedRef.current = true;
+                if (transcript) {
+                    submittingRef.current = true;
                     onSubmitRef.current(transcript);
-                } else if (!transcript) {
-                    setVoiceMessage("No speech was detected. Please try again or type your answer.");
                 }
+
+                return;
+            }
+
+            if (shouldListenRef.current && !submittingRef.current) {
+                retryTimerRef.current = setTimeout(() => {
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        setVoiceMessage("Speech recognition could not restart. Please refresh and try again.");
+                    }
+                }, 350);
             }
         };
 
         recognitionRef.current = recognition;
 
         return () => {
-            clearTimeout(pauseTimerRef.current);
+            clearTimeout(retryTimerRef.current);
+            shouldListenRef.current = false;
             recognition.abort();
         };
-    }, [setAnswer, speechLanguage]);
+    }, [speechLanguage, setAnswer]);
 
     useEffect(() => {
-        clearTimeout(pauseTimerRef.current);
-        submitAfterStopRef.current = false;
-        finalTranscriptRef.current = "";
-        liveTranscriptRef.current = "";
-        submissionStartedRef.current = false;
+        clearTimeout(retryTimerRef.current);
+        shouldListenRef.current = false;
+        finishingRef.current = false;
+        submittingRef.current = false;
+        transcriptRef.current = "";
+        setAnswer("");
         setVoiceMessage("");
+        recognitionRef.current?.abort();
+    }, [questionKey, setAnswer]);
 
-        if (recognitionRef.current) {
-            recognitionRef.current.abort();
-        }
-    }, [questionKey || questionNumber]);
-
-    const startListening = () => {
-        if (loading || isListening || submissionStartedRef.current) {
+    useEffect(() => {
+        if (!voiceOnly || !autoStart || loading || !recognitionRef.current || submittingRef.current) {
             return;
         }
 
-        finalTranscriptRef.current = "";
-        liveTranscriptRef.current = "";
-        submitAfterStopRef.current = false;
-        setAnswer("");
+        shouldListenRef.current = true;
         setVoiceMessage("");
 
         try {
             recognitionRef.current.start();
-            setIsListening(true);
         } catch (error) {
-            setVoiceMessage("Speech recognition could not start. Please try again or type your answer.");
+            setVoiceMessage("Speech recognition could not start. Please allow microphone access and reload the interview.");
         }
-    };
+    }, [autoStart, loading, questionKey, voiceOnly]);
 
     const cancelListening = () => {
-        clearTimeout(pauseTimerRef.current);
-        submitAfterStopRef.current = false;
+        shouldListenRef.current = false;
         recognitionRef.current?.abort();
-        setIsListening(false);
-        setVoiceMessage("Voice input cancelled. You can type your answer instead.");
-    };
-
-    const finishSpeaking = () => {
-        if (!liveTranscriptRef.current.trim()) {
-            setVoiceMessage("No speech was detected. Please continue speaking or type your answer.");
-            return;
-        }
-
-        clearTimeout(pauseTimerRef.current);
-        submitAfterStopRef.current = true;
-        recognitionRef.current?.stop();
+        setVoiceMessage("Voice input cancelled.");
     };
 
     return (
@@ -166,23 +168,32 @@ function AnswerBox({
 
             {voiceSupported ? (
                 <div className="mb-4">
-                    <button
-                        type="button"
-                        onClick={startListening}
-                        disabled={loading || isListening || submissionStartedRef.current}
-                        className="voice-button w-full border border-blue-600 text-blue-700 rounded-lg p-3 hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400 disabled:bg-gray-100"
-                    >
-                        {isListening ? "🔴 Listening..." : voiceOnly ? "🎤 Start speaking" : "🎤 Speak"}
-                    </button>
+                    {voiceOnly ? (
+                        <div className="voice-status p-3 text-center">
+                            {isListening ? "🔴 Listening..." : "Interviewer is preparing your turn..."}
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                shouldListenRef.current = true;
+                                recognitionRef.current?.start();
+                            }}
+                            disabled={loading || isListening}
+                            className="voice-button w-full border border-blue-600 text-blue-700 rounded-lg p-3 hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400 disabled:bg-gray-100"
+                        >
+                            {isListening ? "🔴 Listening..." : "🎤 Speak"}
+                        </button>
+                    )}
 
-                    {isListening && (
+                    {isListening && voiceOnly && (
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             <button
                                 type="button"
                                 onClick={finishSpeaking}
                                 className="rounded-lg bg-teal-700 text-white text-sm font-semibold py-2 hover:bg-teal-800"
                             >
-                                I'm finished speaking
+                                Finish Answer
                             </button>
 
                             <button
