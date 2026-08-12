@@ -147,11 +147,13 @@ function AnswerBox({
         setVoiceMessage("");
 
         try {
-            recognitionRef.current.start();
+            if (!isListening) {
+                recognitionRef.current.start();
+            }
         } catch (error) {
             setVoiceMessage("Speech recognition could not start. Please allow microphone access and reload the interview.");
         }
-    }, [autoStart, loading, questionKey, voiceOnly]);
+    }, [autoStart, isListening, loading, questionKey, voiceOnly]);
 
     const cancelListening = () => {
         shouldListenRef.current = false;
@@ -190,7 +192,7 @@ function AnswerBox({
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             <button
                                 type="button"
-                                onClick={finishSpeaking}
+                                onClick={finishAnswer}
                                 className="rounded-lg bg-teal-700 text-white text-sm font-semibold py-2 hover:bg-teal-800"
                             >
                                 Finish Answer
@@ -240,7 +242,7 @@ function AnswerBox({
             {!voiceOnly && (
                 <button
                     onClick={onSubmit}
-                    disabled={loading || isListening || !answer.trim() || submissionStartedRef.current}
+                    disabled={loading || isListening || !answer.trim()}
                     className="submit-button w-full mt-4 bg-blue-600 text-white rounded-lg p-3 hover:bg-blue-700 disabled:bg-gray-400"
                 >
                     {loading ? "Evaluating..." : "Submit Answer"}
