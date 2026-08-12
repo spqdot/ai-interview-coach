@@ -40,6 +40,7 @@ def fallback_evaluation(
 ) -> dict:
     normalized_answer = answer.strip().lower()
     word_count = len(answer.split())
+    has_non_ascii = any(ord(character) > 127 for character in normalized_answer)
     non_answer_phrases = {
         "dont know",
         "do not know",
@@ -48,6 +49,15 @@ def fallback_evaluation(
         "not sure",
         "i have no idea",
         "i am not sure",
+        "jane na",
+        "জানি না",
+        "पता नहीं",
+        "मुझे नहीं पता",
+        "no se",
+        "no sé",
+        "je ne sais pas",
+        "nao sei",
+        "não sei",
     }
     topic_keywords = {
         "RAG": {
@@ -58,6 +68,37 @@ def fallback_evaluation(
         "LLM Fundamentals": {
             "llm", "language", "model", "token", "tokens", "training",
             "transformer", "context", "prompt", "generation",
+        },
+        "Machine Learning": {
+            "machine learning", "supervised", "unsupervised", "labeled",
+            "unlabeled", "label", "labels", "classification", "regression",
+            "clustering", "prediction", "predict", "features", "training data",
+            "algorithm", "algorithms", "dataset", "data", "সুপারভাইজড",
+            "আনসুপারভাইজড", "লেবেলযুক্ত", "ডেটা", "প্যাটার্ন", "पर्यवेक्षित",
+            "अपर्यवेक्षित", "लेबल", "डेटा", "पैटर्न", "supervisado",
+            "supervisada", "etiquetado", "etiquetados", "no supervisado",
+        },
+        "Deep Learning": {
+            "neural network", "neuron", "neurons", "layer", "layers",
+            "activation", "backpropagation", "gradient", "weights", "training",
+            "deep learning", "model",
+        },
+        "NLP": {
+            "nlp", "natural language", "text", "language", "tokenization",
+            "token", "tokens", "sentiment", "translation", "transformer",
+            "embedding", "embeddings",
+        },
+        "Prompt Engineering": {
+            "prompt", "instruction", "context", "example", "examples",
+            "few-shot", "zero-shot", "system prompt", "output", "llm",
+        },
+        "Embeddings": {
+            "embedding", "embeddings", "vector", "vectors", "semantic",
+            "similarity", "representation", "distance", "search",
+        },
+        "Vector Databases": {
+            "vector", "vectors", "database", "embedding", "embeddings",
+            "similarity", "search", "index", "retrieval",
         },
     }
     matching_keywords = {
@@ -86,7 +127,7 @@ def fallback_evaluation(
             "This answer does not demonstrate understanding of the concept. "
             "Review the key terms and try explaining the idea in your own words."
         )
-    elif question_count <= 3 and not matching_keywords:
+    elif question_count <= 3 and not matching_keywords and not has_non_ascii:
         score = 0
         feedback = (
             "This answer is not relevant to the interview question. "
@@ -104,17 +145,17 @@ def fallback_evaluation(
             "This answer does not address the project challenge in the question. "
             "Describe one problem you encountered and how you handled it."
         )
-    elif word_count < 12:
-        score = 4
-        feedback = (
-            "You identified part of the idea, but the answer needs more technical detail "
-            "and a clearer explanation."
-        )
     elif question_count <= 3 and len(matching_keywords) >= 3:
         score = 8
         feedback = (
             "Your answer is relevant and includes several important technical concepts. "
             "Add a concise example to make the explanation even stronger."
+        )
+    elif word_count < 12:
+        score = 4
+        feedback = (
+            "You identified part of the idea, but the answer needs more technical detail "
+            "and a clearer explanation."
         )
     else:
         score = 6
