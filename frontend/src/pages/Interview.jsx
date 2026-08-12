@@ -39,11 +39,12 @@ function Interview() {
     const speechStartTimerRef = useRef(null);
     const terminatedRef = useRef(false);
     const answerRequestRef = useRef(false);
+    const voiceStopRef = useRef(null);
 
     const maxQuestions = 5;
     const isVoiceInterview = state?.mode === "voice";
     const interviewerMessage = isVoiceInterview && questionNumber === 1
-        ? `${state?.greeting || `Welcome to your ${state?.role || "technical"} interview.`} Today we will discuss ${state?.topic || "your selected topic"}. ${question}`
+        ? `${state?.greeting || ""} ${question}`.trim()
         : question;
 
     useEffect(() => {
@@ -60,15 +61,17 @@ function Interview() {
 
     const startListeningAfterSpeech = () => {
         speechStartTimerRef.current = setTimeout(() => {
-            if (!terminatedRef.current) {
-                setIsInterviewerSpeaking(false);
-                setAutoListen(true);
+            if (terminatedRef.current) {
+                return;
             }
+
+            setIsInterviewerSpeaking(false);
+            setAutoListen(true);
         }, 400);
     };
 
     const speakQuestion = () => {
-        if (!("speechSynthesis" in window) || !interviewerMessage || !isVoiceInterview) {
+        if (terminatedRef.current || !("speechSynthesis" in window) || !interviewerMessage || !isVoiceInterview) {
             return;
         }
 
@@ -82,9 +85,9 @@ function Interview() {
         );
 
         if (speechLanguage === "pt-PT" && !portugueseVoice) {
-            setSpeechMessage("This browser does not provide a Portuguese (Portugal) voice. It will not substitute a Brazilian Portuguese voice.");
-            startListeningAfterSpeech();
-            return;
+            setSpeechMessage("This browser does not provide a dedicated Portuguese (Portugal) voice. The interview will use your browser's default speech voice; speech recognition remains Portuguese (Portugal). ");
+        } else {
+            setSpeechMessage("");
         }
 
         const utterance = new SpeechSynthesisUtterance(interviewerMessage);
@@ -100,6 +103,10 @@ function Interview() {
     };
 
     useEffect(() => {
+        if (terminatedRef.current) {
+            return undefined;
+        }
+
         speakQuestion();
 
         return () => {
@@ -108,8 +115,8 @@ function Interview() {
         };
     }, [interviewerMessage, isVoiceInterview, speechLanguage, availableVoices]);
 
-    const stopInterview = async () => {
-        if (loading || !state?.interview_id || isTerminated) {
+    const stopWrittenInterview = async () => {
+        if (loading || !state?.interview_id) {
             return;
         }
 
@@ -136,6 +143,40 @@ function Interview() {
         }
     };
 
+    const stopInterview = (reason = "manual", notifyBackend = true) => {
+        if (!isVoiceInterview) {
+            return stopWrittenInterview();
+        }
+
+        if (terminatedRef.current) {
+            return;
+        }
+
+        terminatedRef.current = true;
+        answerRequestRef.current = true;
+        clearTimeout(speechStartTimerRef.current);
+        speechStartTimerRef.current = null;
+        speechRef.current = null;
+        window.speechSynthesis?.cancel();
+        voiceStopRef.current?.();
+        setAutoListen(false);
+        setIsInterviewerSpeaking(false);
+        setLoading(false);
+        setIsTerminated(true);
+
+        if (notifyBackend && state?.interview_id) {
+            api.post("/interview/stop", { interview_id: state.interview_id }).catch((error) => {
+                console.error("Error ending voice interview:", error);
+            });
+        }
+
+        setSpeechMessage(
+            reason === "language-mismatch"
+                ? "Interview stopped because the selected interview language was not suitable for you."
+                : "Interview stopped."
+        );
+    };
+
     const submitAnswer = async (submittedAnswer = answer) => {
         const answerText = submittedAnswer.trim();
 
@@ -148,8 +189,8 @@ function Interview() {
             return;
         }
 
-        if (stopPhrases.some((phrase) => answerText.toLowerCase().includes(phrase))) {
-            await stopInterview();
+        if (!isVoiceInterview && stopPhrases.some((phrase) => answerText.toLowerCase().includes(phrase))) {
+            await stopWrittenInterview();
             return;
         }
 
@@ -170,25 +211,13 @@ function Interview() {
                 });
 
                 if (mismatchResponse.data.language_mismatch) {
-                    terminatedRef.current = true;
-                    clearTimeout(speechStartTimerRef.current);
-                    window.speechSynthesis?.cancel();
-                    setAutoListen(false);
-                    setIsInterviewerSpeaking(false);
-                    setIsTerminated(true);
-
-                    navigate("/result", {
-                        state: {
-                            is_language_mismatch: true,
-                            reason: mismatchResponse.data.reason,
-                            language: VOICE_LANGUAGE_LABELS[speechLanguage],
-                            role: state.role,
-                            topic: state.topic,
-                            difficulty: state.difficulty,
-                        },
-                    });
+                    stopInterview("language-mismatch", false);
                     return;
                 }
+            }
+
+            if (terminatedRef.current) {
+                return;
             }
 
             const response = await api.post(
@@ -200,6 +229,10 @@ function Interview() {
             );
 
             const data = response.data;
+
+            if (terminatedRef.current) {
+                return;
+            }
 
             console.log("Interview response:", data);
 
@@ -229,9 +262,9 @@ function Interview() {
                 setQuestion(data.next_question);
             }
 
-            setQuestionNumber(
-                (previous) => previous + 1
-            );
+            if (!terminatedRef.current) {
+                setQuestionNumber((previous) => previous + 1);
+            }
 
             setAnswer("");
 
@@ -260,8 +293,10 @@ function Interview() {
             }
 
         } finally {
-            answerRequestRef.current = false;
-            setLoading(false);
+            if (!terminatedRef.current) {
+                answerRequestRef.current = false;
+                setLoading(false);
+            }
         }
     };
 
@@ -294,6 +329,24 @@ function Interview() {
                 ========================================== */}
 
                 <div className="interview-panel bg-white rounded-2xl shadow-lg p-8">
+
+                    {isVoiceInterview && isTerminated ? (
+                        <div className="text-center py-10">
+                            <h2 className="text-2xl font-bold text-red-800">🛑 Interview Stopped</h2>
+                            <p className="text-gray-700 mt-4">
+                                {speechMessage || "The interview has been stopped."}
+                            </p>
+                            <div className="flex flex-wrap justify-center gap-3 mt-7">
+                                <button type="button" onClick={() => navigate("/")} className="new-interview-button text-white px-6 py-3 rounded-lg">
+                                    Choose Another Language
+                                </button>
+                                <button type="button" onClick={() => navigate("/")} className="border border-blue-600 text-blue-700 px-6 py-3 rounded-lg">
+                                    Restart Interview
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
 
                     {/* ==========================================
                         Interview Information
@@ -462,7 +515,21 @@ function Interview() {
                         voiceOnly={isVoiceInterview}
                         autoStart={isVoiceInterview && autoListen && !isInterviewerSpeaking}
                         isTerminated={isTerminated}
+                        interviewStoppedRef={terminatedRef}
+                        onVoiceStopReady={(stopVoice) => {
+                            voiceStopRef.current = stopVoice;
+                        }}
                     />
+
+                    {isVoiceInterview && (
+                        <button
+                            type="button"
+                            onClick={() => stopInterview("manual")}
+                            className="w-full mt-4 rounded-lg bg-red-700 text-white font-semibold py-3 hover:bg-red-800"
+                        >
+                            🛑 Stop Interview
+                        </button>
+                    )}
 
                     {speechMessage && (
                         <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -507,6 +574,9 @@ function Interview() {
                         </p>
 
                     </div>
+
+                        </>
+                    )}
 
                 </div>
 

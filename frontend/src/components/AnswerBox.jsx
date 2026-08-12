@@ -20,6 +20,8 @@ function AnswerBox({
     voiceOnly = false,
     autoStart = false,
     isTerminated = false,
+    interviewStoppedRef,
+    onVoiceStopReady,
 }) {
     const recognitionRef = useRef(null);
     const shouldListenRef = useRef(false);
@@ -37,7 +39,44 @@ function AnswerBox({
         onSubmitRef.current = onSubmit;
     }, [onSubmit]);
 
+    const interviewIsStopped = () => isTerminated || interviewStoppedRef?.current;
+
+    const stopRecognition = () => {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+        shouldListenRef.current = false;
+        finishingRef.current = false;
+        submittingRef.current = true;
+
+        if (recognitionRef.current) {
+            try {
+                recognitionRef.current.stop();
+            } catch (error) {
+                // The browser may already have stopped recognition.
+            }
+
+            try {
+                recognitionRef.current.abort();
+            } catch (error) {
+                // The browser may already have aborted recognition.
+            }
+        }
+
+        recognitionRef.current = null;
+        setIsListening(false);
+    };
+
+    useEffect(() => {
+        onVoiceStopReady?.(stopRecognition);
+
+        return () => onVoiceStopReady?.(null);
+    }, [onVoiceStopReady]);
+
     const finishAnswer = () => {
+        if (interviewIsStopped()) {
+            return;
+        }
+
         const transcript = transcriptRef.current.trim();
 
         if (!transcript) {
@@ -51,6 +90,10 @@ function AnswerBox({
     };
 
     useEffect(() => {
+        if (interviewStoppedRef?.current) {
+            return undefined;
+        }
+
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         if (!SpeechRecognition) {
@@ -62,9 +105,17 @@ function AnswerBox({
         recognition.lang = speechLanguage;
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.onstart = () => setIsListening(true);
+        recognition.onstart = () => {
+            if (!interviewIsStopped()) {
+                setIsListening(true);
+            }
+        };
 
         recognition.onresult = (event) => {
+            if (interviewIsStopped()) {
+                return;
+            }
+
             let transcript = "";
 
             for (let index = 0; index < event.results.length; index += 1) {
@@ -85,6 +136,10 @@ function AnswerBox({
         };
 
         recognition.onerror = (event) => {
+            if (interviewIsStopped()) {
+                return;
+            }
+
             if (event.error === "not-allowed" || event.error === "service-not-allowed") {
                 shouldListenRef.current = false;
                 setVoiceMessage("Microphone permission was denied. Please allow microphone access and reload the interview.");
@@ -95,6 +150,10 @@ function AnswerBox({
 
         recognition.onend = () => {
             setIsListening(false);
+
+            if (interviewIsStopped()) {
+                return;
+            }
 
             if (finishingRef.current && !submittingRef.current) {
                 finishingRef.current = false;
@@ -110,6 +169,10 @@ function AnswerBox({
 
             if (shouldListenRef.current && !submittingRef.current) {
                 retryTimerRef.current = setTimeout(() => {
+                    if (interviewIsStopped()) {
+                        return;
+                    }
+
                     try {
                         recognition.start();
                     } catch (error) {
@@ -123,12 +186,21 @@ function AnswerBox({
 
         return () => {
             clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
             shouldListenRef.current = false;
-            recognition.abort();
+            try {
+                recognition.abort();
+            } catch (error) {
+                // Recognition can already be stopped during question changes.
+            }
         };
     }, [speechLanguage, questionKey, setAnswer]);
 
     useEffect(() => {
+        if (interviewStoppedRef?.current) {
+            return;
+        }
+
         clearTimeout(retryTimerRef.current);
         shouldListenRef.current = false;
         finishingRef.current = false;
@@ -144,15 +216,11 @@ function AnswerBox({
             return;
         }
 
-        clearTimeout(retryTimerRef.current);
-        shouldListenRef.current = false;
-        finishingRef.current = false;
-        recognitionRef.current?.abort();
-        setIsListening(false);
+        stopRecognition();
     }, [isTerminated]);
 
     useEffect(() => {
-        if (isTerminated || !voiceOnly || !autoStart || loading || !recognitionRef.current || submittingRef.current) {
+        if (interviewIsStopped() || !voiceOnly || !autoStart || loading || !recognitionRef.current || submittingRef.current) {
             return;
         }
 
@@ -160,7 +228,7 @@ function AnswerBox({
         setVoiceMessage("");
 
         try {
-            if (!isListening) {
+            if (!isListening && !interviewIsStopped()) {
                 recognitionRef.current.start();
             }
         } catch (error) {
@@ -169,6 +237,10 @@ function AnswerBox({
     }, [autoStart, isListening, isTerminated, loading, questionKey, voiceOnly]);
 
     const cancelListening = () => {
+        if (interviewIsStopped()) {
+            return;
+        }
+
         shouldListenRef.current = false;
         recognitionRef.current?.abort();
         setVoiceMessage("Voice input cancelled.");
