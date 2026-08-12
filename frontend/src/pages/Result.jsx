@@ -10,15 +10,15 @@ function Result() {
 
     if (!state) {
         return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <div className="bg-white p-8 rounded-xl shadow-lg text-center">
+            <div className="result-page min-h-screen flex items-center justify-center px-4">
+                <div className="result-card bg-white p-8 rounded-xl shadow-lg text-center">
                     <h1 className="text-2xl font-bold mb-4">
                         No Interview Result
                     </h1>
 
                     <button
                         onClick={() => navigate("/")}
-                        className="bg-blue-600 text-white px-6 py-3 rounded-lg"
+                        className="new-interview-button text-white px-6 py-3 rounded-lg"
                     >
                         Start New Interview
                     </button>
@@ -28,13 +28,13 @@ function Result() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 py-10">
+        <div className="result-page min-h-screen py-10">
 
             <div className="max-w-4xl mx-auto px-4">
 
                 {/* Header */}
 
-                <div className="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <div className="result-header bg-white rounded-xl shadow-lg p-8 mb-6">
 
                     <h1 className="text-3xl font-bold text-center">
                         Interview Results
@@ -46,13 +46,25 @@ function Result() {
 
                 </div>
 
+                {state.is_incomplete && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+                        <h2 className="text-xl font-bold text-amber-900">
+                            Interview Not Completed
+                        </h2>
+
+                        <p className="text-amber-800 mt-2">
+                            Thank you for the interview. You answered {state.answered_questions} of 5 questions, and the score below reflects only those submitted answers.
+                        </p>
+                    </div>
+                )}
+
 
                 {/* Final Score */}
 
-                <div className="bg-white rounded-xl shadow-lg p-8 mb-6 text-center">
+                <div className="result-card score-card bg-white rounded-xl shadow-lg p-8 mb-6 text-center">
 
                     <p className="text-gray-500">
-                        Final Score
+                        {state.is_incomplete ? "Incomplete Interview Score" : "Final Score"}
                     </p>
 
                     <p className="text-5xl font-bold text-blue-600 mt-2">
@@ -68,7 +80,7 @@ function Result() {
 
                 {/* Hiring Recommendation */}
 
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="result-card bg-white rounded-xl shadow-lg p-6 mb-6">
 
                     <h2 className="text-xl font-bold mb-3">
                         Hiring Recommendation
@@ -83,7 +95,7 @@ function Result() {
 
                 {/* Question Scores */}
 
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="result-card bg-white rounded-xl shadow-lg p-6 mb-6">
 
                     <h2 className="text-xl font-bold mb-4">
                         Question Scores
@@ -95,7 +107,7 @@ function Result() {
                             (score, index) => (
                                 <div
                                     key={index}
-                                    className="border rounded-lg p-4 text-center"
+                                    className="score-tile border rounded-lg p-4 text-center"
                                 >
                                     <p className="text-sm text-gray-500">
                                         Question {index + 1}
@@ -115,7 +127,7 @@ function Result() {
 
                 {/* Strengths */}
 
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="result-card bg-white rounded-xl shadow-lg p-6 mb-6">
 
                     <h2 className="text-xl font-bold mb-4">
                         Strengths
@@ -138,7 +150,7 @@ function Result() {
 
                 {/* Areas for Improvement */}
 
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="result-card bg-white rounded-xl shadow-lg p-6 mb-6">
 
                     <h2 className="text-xl font-bold mb-4">
                         Areas for Improvement
@@ -161,7 +173,7 @@ function Result() {
 
                 {/* Recommended Topics */}
 
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="result-card bg-white rounded-xl shadow-lg p-6 mb-6">
 
                     <h2 className="text-xl font-bold mb-4">
                         Recommended Topics
@@ -187,7 +199,7 @@ function Result() {
 
                 {/* Final Feedback */}
 
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="result-card bg-white rounded-xl shadow-lg p-6 mb-6">
 
                     <h2 className="text-xl font-bold mb-4">
                         Final Feedback
@@ -206,14 +218,14 @@ function Result() {
 
                     <button
                         onClick={downloadReport}
-                        className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+                        className="report-button text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
                     >
                         📄 Download Interview Report
                     </button>
 
                     <button
                         onClick={() => navigate("/")}
-                        className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                        className="new-interview-button text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
                     >
                         Start New Interview
                     </button>

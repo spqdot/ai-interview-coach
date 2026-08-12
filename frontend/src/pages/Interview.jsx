@@ -4,6 +4,16 @@ import { useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import AnswerBox from "../components/AnswerBox";
 
+const stopPhrases = [
+    "i do not want to continue",
+    "i don't want to continue",
+    "i dont want to continue",
+    "i want to stop",
+    "stop interview",
+    "end interview",
+    "quit interview",
+];
+
 function Interview() {
     const { state } = useLocation();
     const navigate = useNavigate();
@@ -19,9 +29,48 @@ function Interview() {
 
     const maxQuestions = 5;
 
-    const submitAnswer = async () => {
-        if (!answer.trim()) {
+    const stopInterview = async () => {
+        if (loading || !state?.interview_id) {
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const response = await api.post("/interview/stop", {
+                interview_id: state.interview_id,
+            });
+
+            navigate("/result", {
+                state: {
+                    ...response.data,
+                    role: state.role,
+                    topic: state.topic,
+                    difficulty: state.difficulty,
+                },
+            });
+        } catch (error) {
+            console.error("Error ending interview:", error);
+            alert("Could not end the interview. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const submitAnswer = async (submittedAnswer = answer) => {
+        const answerText = submittedAnswer.trim();
+
+        if (loading) {
+            return;
+        }
+
+        if (!answerText) {
             alert("Please enter your answer before submitting.");
+            return;
+        }
+
+        if (stopPhrases.some((phrase) => answerText.toLowerCase().includes(phrase))) {
+            await stopInterview();
             return;
         }
 
@@ -37,7 +86,7 @@ function Interview() {
                 "/interview/answer",
                 {
                     interview_id: state.interview_id,
-                    answer: answer.trim(),
+                    answer: answerText,
                 }
             );
 
@@ -106,7 +155,7 @@ function Interview() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 py-10 px-4">
+        <div className="interview-page min-h-screen py-10 px-4">
 
             <div className="max-w-3xl mx-auto">
 
@@ -114,9 +163,11 @@ function Interview() {
                     Header
                 ========================================== */}
 
-                <div className="text-center mb-8">
+                <div className="interview-header bg-white text-center mb-8 p-6">
 
-                    <h1 className="text-3xl font-bold text-gray-900">
+                    <p className="eyebrow mb-2">Live technical practice</p>
+
+                    <h1 className="page-title text-3xl font-bold text-gray-900">
                         AI Interview Coach
                     </h1>
 
@@ -131,7 +182,7 @@ function Interview() {
                     Interview Card
                 ========================================== */}
 
-                <div className="bg-white rounded-2xl shadow-lg p-8">
+                <div className="interview-panel bg-white rounded-2xl shadow-lg p-8">
 
                     {/* ==========================================
                         Interview Information
@@ -256,7 +307,9 @@ function Interview() {
                         answer={answer}
                         setAnswer={setAnswer}
                         onSubmit={submitAnswer}
+                        onStopInterview={stopInterview}
                         loading={loading}
+                        questionNumber={questionNumber}
                     />
 
 

@@ -63,27 +63,33 @@ function Home() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex justify-center items-center px-4">
+        <div className="home-page min-h-screen flex justify-center items-center px-4 py-10">
 
-            <div className="bg-white rounded-xl shadow-lg p-8 w-[500px]">
+            <div className="home-card bg-white rounded-xl shadow-lg p-8 w-[500px]">
 
                 {/* Title */}
-                <h1 className="text-3xl font-bold text-center mb-8">
+                <p className="eyebrow text-center mb-3">Technical practice studio</p>
+
+                <h1 className="page-title text-3xl font-bold text-center mb-2">
                     AI Interview Coach
                 </h1>
+
+                <p className="text-center text-gray-500 text-sm mb-8">
+                    Build confidence one thoughtful answer at a time.
+                </p>
 
 
                 <div className="space-y-5">
 
                     {/* Candidate Name */}
                     <div>
-                        <label className="font-semibold">
+                        <label className="field-label">
                             Candidate Name
                         </label>
 
                         <input
                             type="text"
-                            className="w-full border rounded-lg p-3 mt-2"
+                            className="form-control w-full border rounded-lg p-3 mt-2"
                             value={candidateName}
                             onChange={(e) =>
                                 setCandidateName(e.target.value)
@@ -95,12 +101,12 @@ function Home() {
 
                     {/* Role */}
                     <div>
-                        <label className="font-semibold">
+                        <label className="field-label">
                             Role
                         </label>
 
                         <select
-                            className="w-full border rounded-lg p-3 mt-2"
+                            className="form-control w-full border rounded-lg p-3 mt-2"
                             value={role}
                             onChange={(e) =>
                                 setRole(e.target.value)
@@ -123,12 +129,12 @@ function Home() {
 
                     {/* Topic */}
                     <div>
-                        <label className="font-semibold">
+                        <label className="field-label">
                             Topic
                         </label>
 
                         <select
-                            className="w-full border rounded-lg p-3 mt-2"
+                            className="form-control w-full border rounded-lg p-3 mt-2"
                             value={topic}
                             onChange={(e) =>
                                 setTopic(e.target.value)
@@ -179,12 +185,12 @@ function Home() {
 
                     {/* Difficulty */}
                     <div>
-                        <label className="font-semibold">
+                        <label className="field-label">
                             Difficulty
                         </label>
 
                         <select
-                            className="w-full border rounded-lg p-3 mt-2"
+                            className="form-control w-full border rounded-lg p-3 mt-2"
                             value={difficulty}
                             onChange={(e) =>
                                 setDifficulty(e.target.value)
@@ -209,7 +215,7 @@ function Home() {
                     <button
                         onClick={startInterview}
                         disabled={loading}
-                        className={`w-full text-white rounded-lg p-3 mt-5 ${
+                        className={`primary-button w-full text-white rounded-lg p-3 mt-5 ${
                             loading
                                 ? "bg-blue-400 cursor-not-allowed"
                                 : "bg-blue-600 hover:bg-blue-700"

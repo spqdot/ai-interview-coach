@@ -5,6 +5,7 @@ from backend.app.models.schemas import (
     InterviewStartResponse,
     InterviewAnswerRequest,
     InterviewAnswerResponse,
+    InterviewStopRequest,
 )
 from backend.app.services.llm_service import (
     generate_interview_question,
@@ -17,6 +18,7 @@ from backend.app.services.interview_service import (
     get_interview,
     save_answer,
     is_interview_complete,
+    end_interview,
     calculate_final_score,
     get_question_scores,
 )
@@ -63,6 +65,63 @@ def start_interview(
         interview_id=interview_id,
         greeting=greeting,
         question=question,
+    )
+
+
+# ==========================================
+# Stop Interview Early
+# ==========================================
+@router.post(
+    "/stop",
+    response_model=InterviewAnswerResponse,
+)
+def stop_interview(
+    request: InterviewStopRequest,
+):
+    interview = get_interview(request.interview_id)
+
+    if interview is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview session not found.",
+        )
+
+    if interview["is_complete"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Interview already completed.",
+        )
+
+    end_interview(request.interview_id)
+
+    final_score = calculate_final_score(request.interview_id)
+    question_scores = get_question_scores(request.interview_id)
+    answered_questions = len(question_scores)
+
+    return InterviewAnswerResponse(
+        score=0,
+        feedback="Interview ended before completion.",
+        next_question=None,
+        is_complete=True,
+        final_score=final_score,
+        overall_rating="Incomplete Interview",
+        hiring_recommendation="Not Assessed",
+        question_scores=question_scores,
+        strengths=[
+            "You completed the questions answered before ending the interview.",
+        ] if answered_questions else [
+            "No answers were submitted before the interview ended.",
+        ],
+        areas_for_improvement=[
+            "Complete the full interview for a more reliable assessment.",
+        ],
+        recommended_topics=[interview["topic"]],
+        final_feedback=(
+            "Thank you for the interview. You did not complete all five questions, "
+            "so this score reflects only the answers you submitted."
+        ),
+        is_incomplete=True,
+        answered_questions=answered_questions,
     )
 
 
@@ -176,6 +235,9 @@ def submit_interview_answer(
             recommended_topics=report["recommended_topics"],
 
             final_feedback=report["final_feedback"],
+
+            is_incomplete=False,
+            answered_questions=len(question_scores),
         )
 
     # ==========================================
@@ -199,4 +261,7 @@ def submit_interview_answer(
         recommended_topics=None,
 
         final_feedback=None,
+
+        is_incomplete=False,
+        answered_questions=0,
     )

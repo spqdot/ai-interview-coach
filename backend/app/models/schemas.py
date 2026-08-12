@@ -26,6 +26,10 @@ class InterviewAnswerRequest(BaseModel):
     answer: str
 
 
+class InterviewStopRequest(BaseModel):
+    interview_id: str
+
+
 class InterviewAnswerResponse(BaseModel):
     score: int
     feedback: str
@@ -49,3 +53,7 @@ class InterviewAnswerResponse(BaseModel):
     question_scores: list[int] | None = None
 
     recommended_topics: list[str] | None = None
+
+    is_incomplete: bool = False
+
+    answered_questions: int = 0

@@ -109,6 +109,14 @@ def is_interview_complete(
     return interview["is_complete"]
 
 
+def end_interview(
+    interview_id: str,
+):
+    interview = interviews[interview_id]
+    interview["is_complete"] = True
+    interview["current_question"] = None
+
+
 # ==========================================
 # Calculate Final Score
 # ==========================================
