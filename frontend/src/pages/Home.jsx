@@ -7,6 +7,8 @@ function Home() {
     const [role, setRole] = useState("AI Engineer");
     const [topic, setTopic] = useState("RAG");
     const [difficulty, setDifficulty] = useState("Easy");
+    const [mode, setMode] = useState("written");
+    const [speechLanguage, setSpeechLanguage] = useState("en-US");
 
     const [loading, setLoading] = useState(false);
 
@@ -35,9 +37,12 @@ function Home() {
             navigate("/interview", {
                 state: {
                     ...response.data,
+                    candidate_name: candidateName,
                     role: role,
                     topic: topic,
                     difficulty: difficulty,
+                    mode: mode,
+                    speechLanguage: speechLanguage,
                 },
             });
 
@@ -77,6 +82,35 @@ function Home() {
                 <p className="text-center text-gray-500 text-sm mb-8">
                     Build confidence one thoughtful answer at a time.
                 </p>
+
+
+                <div className="mb-6">
+                    <p className="field-label mb-2">Choose your interview experience</p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setMode("written")}
+                            className={`mode-card text-left p-4 ${
+                                mode === "written" ? "mode-card-active" : ""
+                            }`}
+                        >
+                            <span className="block text-lg font-extrabold">Written Interview</span>
+                            <span className="block text-sm mt-1">Read, write, and submit each answer.</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setMode("voice")}
+                            className={`mode-card text-left p-4 ${
+                                mode === "voice" ? "mode-card-active" : ""
+                            }`}
+                        >
+                            <span className="block text-lg font-extrabold">Real-Time Voice</span>
+                            <span className="block text-sm mt-1">Speak with an interviewer using your microphone.</span>
+                        </button>
+                    </div>
+                </div>
 
 
                 <div className="space-y-5">
@@ -210,6 +244,26 @@ function Home() {
                         </select>
                     </div>
 
+                    {mode === "voice" && (
+                        <div>
+                            <label className="field-label">
+                                Voice Language
+                            </label>
+
+                            <select
+                                className="form-control w-full border rounded-lg p-3 mt-2"
+                                value={speechLanguage}
+                                onChange={(e) => setSpeechLanguage(e.target.value)}
+                            >
+                                <option value="en-US">English</option>
+                                <option value="bn-BD">Bengali</option>
+                                <option value="hi-IN">Hindi</option>
+                                <option value="es-ES">Spanish</option>
+                                <option value="fr-FR">French</option>
+                            </select>
+                        </div>
+                    )}
+
 
                     {/* Start Interview Button */}
                     <button
@@ -223,7 +277,9 @@ function Home() {
                     >
                         {loading
                             ? "Starting Interview..."
-                            : "Start Interview"
+                            : mode === "voice"
+                                ? "Start Real Interview"
+                                : "Start Written Interview"
                         }
                     </button>
 

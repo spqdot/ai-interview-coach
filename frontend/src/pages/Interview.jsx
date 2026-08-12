@@ -24,20 +24,27 @@ function Interview() {
 
     const [answer, setAnswer] = useState("");
     const [loading, setLoading] = useState(false);
+    const [voiceStage, setVoiceStage] = useState(
+        state?.mode === "voice" ? "ready" : "question"
+    );
 
     const [questionNumber, setQuestionNumber] = useState(1);
     const speechRef = useRef(null);
 
     const maxQuestions = 5;
+    const isVoiceInterview = state?.mode === "voice";
+    const speechLanguage = state?.speechLanguage || "en-US";
+    const readyPrompt = `Hi ${state?.candidate_name || "there"}, welcome to your ${state?.role || "technical"} interview. Today we will discuss ${state?.topic || "your selected topic"}. Are you ready to begin?`;
+    const interviewerMessage = voiceStage === "ready" ? readyPrompt : question;
 
     const speakQuestion = () => {
-        if (!("speechSynthesis" in window) || !question) {
+        if (!("speechSynthesis" in window) || !interviewerMessage || !isVoiceInterview) {
             return;
         }
 
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(question);
-        utterance.lang = "en-US";
+        const utterance = new SpeechSynthesisUtterance(interviewerMessage);
+        utterance.lang = speechLanguage;
         utterance.rate = 0.92;
         speechRef.current = utterance;
         window.speechSynthesis.speak(utterance);
@@ -49,7 +56,7 @@ function Interview() {
         return () => {
             window.speechSynthesis?.cancel();
         };
-    }, [question]);
+    }, [interviewerMessage, isVoiceInterview, speechLanguage]);
 
     const stopInterview = async () => {
         if (loading || !state?.interview_id) {
@@ -88,6 +95,12 @@ function Interview() {
 
         if (!answerText) {
             alert("Please enter your answer before submitting.");
+            return;
+        }
+
+        if (isVoiceInterview && voiceStage === "ready") {
+            setAnswer("");
+            setVoiceStage("question");
             return;
         }
 
@@ -194,7 +207,7 @@ function Interview() {
                     </h1>
 
                     <p className="text-gray-500 mt-2">
-                        Technical Interview
+                        {isVoiceInterview ? "Real-Time Voice Interview" : "Written Technical Interview"}
                     </p>
 
                 </div>
@@ -307,22 +320,22 @@ function Interview() {
                     <div className="mb-6">
 
                         <p className="text-sm font-medium text-gray-500 mb-2">
-                            Interview Question
+                            {isVoiceInterview ? "AI Interviewer" : "Interview Question"}
                         </p>
 
                         <div className="p-6 bg-gray-50 border border-gray-200 rounded-xl">
 
                             <p className="text-xl font-semibold text-gray-900 leading-relaxed">
-                                {question}
+                                {interviewerMessage}
                             </p>
 
-                            {"speechSynthesis" in window && (
+                            {isVoiceInterview && "speechSynthesis" in window && (
                                 <button
                                     type="button"
                                     onClick={speakQuestion}
                                     className="mt-5 text-sm font-semibold text-blue-700 hover:text-blue-900"
                                 >
-                                    Listen to question again
+                                    Replay interviewer
                                 </button>
                             )}
 
@@ -342,6 +355,9 @@ function Interview() {
                         onStopInterview={stopInterview}
                         loading={loading}
                         questionNumber={questionNumber}
+                        questionKey={`${questionNumber}-${voiceStage}`}
+                        speechLanguage={speechLanguage}
+                        voiceOnly={isVoiceInterview}
                     />
 
 
@@ -355,7 +371,11 @@ function Interview() {
 
                             {loading
                                 ? "Evaluating your answer and preparing the next question..."
-                                : "Answer as you would in a real technical interview."
+                                : isVoiceInterview
+                                    ? voiceStage === "ready"
+                                        ? "Answer the interviewer by voice to begin."
+                                        : "Speak naturally. Say when you are finished, or pause to submit automatically."
+                                    : "Answer as you would in a real technical interview."
                             }
 
                         </p>

@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
-function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, questionNumber }) {
+function AnswerBox({
+    answer,
+    setAnswer,
+    onSubmit,
+    onStopInterview,
+    loading,
+    questionNumber,
+    questionKey,
+    speechLanguage = "en-US",
+    voiceOnly = false,
+}) {
     const recognitionRef = useRef(null);
     const pauseTimerRef = useRef(null);
     const finalTranscriptRef = useRef("");
@@ -26,7 +36,7 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
         }
 
         const recognition = new SpeechRecognition();
-        recognition.lang = "en-US";
+        recognition.lang = speechLanguage;
         recognition.continuous = true;
         recognition.interimResults = true;
 
@@ -94,7 +104,7 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
             clearTimeout(pauseTimerRef.current);
             recognition.abort();
         };
-    }, [setAnswer]);
+    }, [setAnswer, speechLanguage]);
 
     useEffect(() => {
         clearTimeout(pauseTimerRef.current);
@@ -107,7 +117,7 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
         if (recognitionRef.current) {
             recognitionRef.current.abort();
         }
-    }, [questionNumber]);
+    }, [questionKey || questionNumber]);
 
     const startListening = () => {
         if (loading || isListening || submissionStartedRef.current) {
@@ -151,7 +161,7 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
         <div className="answer-box mt-6">
 
             <label className="block font-semibold mb-2">
-                Your Answer
+                {voiceOnly ? "Your response" : "Your Answer"}
             </label>
 
             {voiceSupported ? (
@@ -162,7 +172,7 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
                         disabled={loading || isListening || submissionStartedRef.current}
                         className="voice-button w-full border border-blue-600 text-blue-700 rounded-lg p-3 hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400 disabled:bg-gray-100"
                     >
-                        {isListening ? "🔴 Listening..." : "🎤 Speak"}
+                        {isListening ? "🔴 Listening..." : voiceOnly ? "🎤 Start speaking" : "🎤 Speak"}
                     </button>
 
                     {isListening && (
@@ -197,22 +207,34 @@ function AnswerBox({ answer, setAnswer, onSubmit, onStopInterview, loading, ques
                 </p>
             )}
 
-            <textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder={isListening ? "Your live speech transcript will appear here..." : "Type your answer here..."}
-                rows={7}
-                className="w-full border rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading || isListening}
-            />
+            {voiceOnly ? (
+                <div className="voice-transcript min-h-28 p-4">
+                    {answer || (
+                        <span className="text-gray-400">
+                            Your live response will appear here while you speak.
+                        </span>
+                    )}
+                </div>
+            ) : (
+                <textarea
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    placeholder={isListening ? "Your live speech transcript will appear here..." : "Type your answer here..."}
+                    rows={7}
+                    className="w-full border rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={loading || isListening}
+                />
+            )}
 
-            <button
-                onClick={onSubmit}
-                disabled={loading || isListening || !answer.trim() || submissionStartedRef.current}
-                className="submit-button w-full mt-4 bg-blue-600 text-white rounded-lg p-3 hover:bg-blue-700 disabled:bg-gray-400"
-            >
-                {loading ? "Evaluating..." : "Submit Answer"}
-            </button>
+            {!voiceOnly && (
+                <button
+                    onClick={onSubmit}
+                    disabled={loading || isListening || !answer.trim() || submissionStartedRef.current}
+                    className="submit-button w-full mt-4 bg-blue-600 text-white rounded-lg p-3 hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                    {loading ? "Evaluating..." : "Submit Answer"}
+                </button>
+            )}
 
             <button
                 type="button"
