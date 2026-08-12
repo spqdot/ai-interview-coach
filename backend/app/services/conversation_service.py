@@ -3,7 +3,7 @@ import re
 
 def _technical_answer_before_aside(transcript: str) -> str | None:
     aside_match = re.search(
-        r"\b(?:by the way|before we continue|also),?\s+.*?\b(?:do you remember|what(?:'s| is)) my name\b",
+        r"\b(?:by the way|before we continue|also),?\s+.*?\b(?:do|can|will|would) you remember my name\b|\b(?:by the way|before we continue|also),?\s+.*?\bwhat(?:'s| is) my name\b",
         transcript,
         re.IGNORECASE,
     )
@@ -22,7 +22,9 @@ def build_conversation_reply(
 ) -> tuple[str | None, str | None]:
     normalized = transcript.lower()
     asks_about_name = re.search(
-        r"\b(do you remember|what(?:'s| is)) my name\b", normalized)
+        r"\b(?:do|can|will|would) you remember my name\b|\bwhat(?:'s| is) my name\b",
+        normalized,
+    )
 
     if asks_about_name:
         technical_answer = _technical_answer_before_aside(transcript)
