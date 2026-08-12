@@ -34,6 +34,68 @@ def use_remote_evaluation() -> bool:
     return os.getenv("USE_REMOTE_EVALUATION", "false").lower() == "true"
 
 
+RELEVANCE_SCORE_CAPS = {
+    "none": 0,
+    "low": 2,
+    "partial": 5,
+    "high": 10,
+}
+
+
+def apply_relevance_safety(evaluation: dict) -> dict:
+    relevance_level = evaluation.get("relevance_level", "none")
+
+    if relevance_level not in RELEVANCE_SCORE_CAPS:
+        relevance_level = "none"
+
+    evaluation["relevance_level"] = relevance_level
+    evaluation["is_relevant"] = relevance_level in {"partial", "high"}
+    evaluation["score"] = min(
+        max(0, int(evaluation.get("score", 0))),
+        RELEVANCE_SCORE_CAPS[relevance_level],
+    )
+    return evaluation
+
+
+def fallback_relevance(topic: str, answer: str) -> str:
+    normalized = answer.strip().lower()
+
+    if topic == "RAG":
+        unrelated_context = {
+            "favorite food", "pizza", "football", "football team", "soccer",
+            "live in", "portugal", "programming language", "python",
+        }
+        if any(term in normalized for term in unrelated_context):
+            return "none"
+
+        has_full_name = "retrieval-augmented generation" in normalized or "retrieval augmented generation" in normalized
+        has_retrieval = any(term in normalized for term in {"retrieval", "retrieve", "retrieves", "retrieved", "documents", "document", "search"})
+        has_generation = any(term in normalized for term in {"generation", "generate", "generates", "generated", "llm", "language model"})
+        support_count = sum(term in normalized for term in {"embedding", "embeddings", "vector", "database", "context", "prompt", "chunks"})
+
+        if has_full_name and (has_retrieval or has_generation):
+            return "high" if has_retrieval and has_generation and support_count else "partial"
+        if has_retrieval and has_generation:
+            return "high" if support_count else "partial"
+        if has_full_name or "rag" in normalized or has_retrieval or has_generation:
+            return "low"
+        if any(term in normalized for term in {"machine learning", "model", "data", "ai"}):
+            return "low"
+        return "none"
+
+    topic_terms = {
+        "LLM Fundamentals": {"llm", "large language model", "token", "transformer", "context window"},
+        "Machine Learning": {"machine learning", "supervised", "unsupervised", "classification", "regression", "training data"},
+        "Deep Learning": {"deep learning", "neural network", "neuron", "backpropagation", "gradient"},
+        "NLP": {"nlp", "natural language processing", "tokenization", "sentiment", "text"},
+        "Prompt Engineering": {"prompt", "instruction", "few-shot", "zero-shot", "system prompt"},
+        "Embeddings": {"embedding", "embeddings", "vector", "semantic similarity"},
+        "Vector Databases": {"vector database", "vector", "embedding", "similarity search"},
+    }
+    matches = sum(term in normalized for term in topic_terms.get(topic, {topic.lower()}))
+    return "high" if matches >= 2 else "partial" if matches == 1 else "none"
+
+
 def fallback_evaluation(
     topic: str,
     answer: str,
@@ -42,7 +104,6 @@ def fallback_evaluation(
 ) -> dict:
     normalized_answer = answer.strip().lower()
     word_count = len(answer.split())
-    has_non_ascii = any(ord(character) > 127 for character in normalized_answer)
     non_answer_phrases = {
         "dont know",
         "do not know",
@@ -61,53 +122,6 @@ def fallback_evaluation(
         "nao sei",
         "não sei",
     }
-    topic_keywords = {
-        "RAG": {
-            "rag", "retrieval", "retrieve", "retrieves", "document",
-            "documents", "context", "embedding", "embeddings", "vector",
-            "database", "search", "llm", "generation", "grounded",
-        },
-        "LLM Fundamentals": {
-            "llm", "language", "model", "token", "tokens", "training",
-            "transformer", "context", "prompt", "generation",
-        },
-        "Machine Learning": {
-            "machine learning", "supervised", "unsupervised", "labeled",
-            "unlabeled", "label", "labels", "classification", "regression",
-            "clustering", "prediction", "predict", "features", "training data",
-            "algorithm", "algorithms", "dataset", "data", "সুপারভাইজড",
-            "আনসুপারভাইজড", "লেবেলযুক্ত", "ডেটা", "প্যাটার্ন", "पर्यवेक्षित",
-            "अपर्यवेक्षित", "लेबल", "डेटा", "पैटर्न", "supervisado",
-            "supervisada", "etiquetado", "etiquetados", "no supervisado",
-        },
-        "Deep Learning": {
-            "neural network", "neuron", "neurons", "layer", "layers",
-            "activation", "backpropagation", "gradient", "weights", "training",
-            "deep learning", "model",
-        },
-        "NLP": {
-            "nlp", "natural language", "text", "language", "tokenization",
-            "token", "tokens", "sentiment", "translation", "transformer",
-            "embedding", "embeddings",
-        },
-        "Prompt Engineering": {
-            "prompt", "instruction", "context", "example", "examples",
-            "few-shot", "zero-shot", "system prompt", "output", "llm",
-        },
-        "Embeddings": {
-            "embedding", "embeddings", "vector", "vectors", "semantic",
-            "similarity", "representation", "distance", "search",
-        },
-        "Vector Databases": {
-            "vector", "vectors", "database", "embedding", "embeddings",
-            "similarity", "search", "index", "retrieval",
-        },
-    }
-    matching_keywords = {
-        keyword
-        for keyword in topic_keywords.get(topic, {topic.lower()})
-        if keyword in normalized_answer
-    }
     project_keywords = {
         "project", "built", "build", "created", "developed", "implemented",
         "worked", "work", "model", "data", "dataset", "analysis", "system",
@@ -119,6 +133,7 @@ def fallback_evaluation(
     }
     has_project_detail = any(keyword in normalized_answer for keyword in project_keywords)
     has_challenge_detail = any(keyword in normalized_answer for keyword in challenge_keywords)
+    relevance_level = fallback_relevance(topic, answer) if question_count <= 3 else "high"
 
     if (
         not normalized_answer
@@ -129,11 +144,17 @@ def fallback_evaluation(
             "This answer does not demonstrate understanding of the concept. "
             "Review the key terms and try explaining the idea in your own words."
         )
-    elif question_count <= 3 and not matching_keywords and not has_non_ascii:
+    elif question_count <= 3 and relevance_level == "none":
         score = 0
         feedback = (
             "This answer is not relevant to the interview question. "
             "Review the core concept and answer using the correct technical terms."
+        )
+    elif question_count <= 3 and relevance_level == "low":
+        score = 2
+        feedback = (
+            "This answer mentions a related term but does not explain the concept asked in the question. "
+            "Explain how the relevant components work together."
         )
     elif question_count == 4 and not has_project_detail:
         score = 0
@@ -147,14 +168,16 @@ def fallback_evaluation(
             "This answer does not address the project challenge in the question. "
             "Describe one problem you encountered and how you handled it."
         )
-    elif question_count <= 3 and len(matching_keywords) >= 3:
-        score = 8
+    elif question_count <= 3 and relevance_level == "high" and word_count >= 20:
+        score = 9
         feedback = (
-            "Your answer is relevant and includes several important technical concepts. "
-            "Add a concise example to make the explanation even stronger."
+            "Your answer is relevant and clearly explains the key technical concepts."
         )
+    elif question_count <= 3 and relevance_level == "high":
+        score = 8
+        feedback = "Your answer is relevant and includes the important technical concepts."
     elif word_count < 12:
-        score = 4
+        score = 3
         feedback = (
             "You identified part of the idea, but the answer needs more technical detail "
             "and a clearer explanation."
@@ -196,11 +219,13 @@ def fallback_evaluation(
     else:
         next_question = topic_questions[(question_count - 1) % len(topic_questions)]
 
-    return {
+    return apply_relevance_safety({
+        "is_relevant": relevance_level in {"partial", "high"},
+        "relevance_level": relevance_level,
         "score": score,
         "feedback": feedback,
         "next_question": localize_question(next_question, language),
-    }
+    })
 
 
 def fallback_final_report(final_score: float) -> dict:
@@ -540,7 +565,17 @@ REFERENCE MATERIAL:
 Evaluate the candidate's answer using the reference
 material as technical grounding.
 
-Evaluate based on:
+RELEVANCE IS A HARD GATE. First classify whether the candidate actually
+addresses the current interview question. Do not award points for confident,
+well-written, detailed, or keyword-stuffed answers that do not answer it.
+
+Relevance levels:
+- none: completely unrelated; score MUST be 0.
+- low: only a vague or incorrect connection; score MUST be at most 2.
+- partial: addresses part of the question; score MUST be at most 5.
+- high: directly answers the question; score may be 0 to 10 based on quality.
+
+Only after relevance is determined, evaluate:
 
 1. Technical correctness
 2. Important concepts covered
@@ -560,6 +595,8 @@ generating the next question.
 Return ONLY valid JSON with exactly these fields:
 
 {{
+    "is_relevant": false,
+    "relevance_level": "none",
     "score": 0,
     "feedback": "Concise feedback for the candidate.",
     "next_question": "One follow-up interview question."
@@ -568,6 +605,8 @@ Return ONLY valid JSON with exactly these fields:
 Rules for the JSON response:
 
 - score must be an integer from 0 to 10.
+- is_relevant must be a boolean.
+- relevance_level must be one of: none, low, partial, high.
 - feedback must be concise and constructive.
 - next_question must contain exactly one interview question.
 - Do not include Markdown.
@@ -614,6 +653,8 @@ Rules for the JSON response:
     # ==========================================
 
     required_fields = {
+        "is_relevant",
+        "relevance_level",
         "score",
         "feedback",
         "next_question",
@@ -645,17 +686,7 @@ Rules for the JSON response:
         ) from error
 
 
-    # ==========================================
-    # Keep Score Within 0-10
-    # ==========================================
-
-    evaluation["score"] = max(
-        0,
-        min(10, evaluation["score"]),
-    )
-
-
-    return evaluation
+    return apply_relevance_safety(evaluation)
 
 
 # ==========================================
