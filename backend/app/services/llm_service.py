@@ -37,23 +37,56 @@ def use_remote_evaluation() -> bool:
 RELEVANCE_SCORE_CAPS = {
     "none": 0,
     "low": 2,
+    "medium": 5,
     "partial": 5,
     "high": 10,
 }
 
 
-def apply_relevance_safety(evaluation: dict) -> dict:
+NO_KNOWLEDGE_PATTERNS = (
+    "i don't know",
+    "i dont know",
+    "i do not know",
+    "i don't know the answer",
+    "i have no idea",
+    "i'm not sure",
+    "i am not sure",
+    "i don't know how to answer",
+)
+
+
+def is_no_knowledge_answer(answer: str) -> bool:
+    normalized = answer.strip().lower()
+    return any(pattern in normalized for pattern in NO_KNOWLEDGE_PATTERNS)
+
+
+def apply_evaluation_safety(evaluation: dict, answer: str) -> dict:
     relevance_level = evaluation.get("relevance_level", "none")
+    correctness = evaluation.get("correctness", "incorrect")
 
     if relevance_level not in RELEVANCE_SCORE_CAPS:
         relevance_level = "none"
+    if correctness not in {"incorrect", "partial", "correct"}:
+        correctness = "incorrect"
 
     evaluation["relevance_level"] = relevance_level
-    evaluation["is_relevant"] = relevance_level in {"partial", "high"}
+    evaluation["correctness"] = correctness
+    evaluation["is_relevant"] = relevance_level in {"medium", "partial", "high"}
     evaluation["score"] = min(
         max(0, int(evaluation.get("score", 0))),
         RELEVANCE_SCORE_CAPS[relevance_level],
     )
+
+    if correctness == "incorrect":
+        evaluation["score"] = min(evaluation["score"], 2)
+
+    if is_no_knowledge_answer(answer):
+        evaluation["score"] = 0
+        evaluation["relevance_level"] = "none"
+        evaluation["correctness"] = "incorrect"
+        evaluation["is_relevant"] = False
+        evaluation["feedback"] = "The candidate did not provide an answer to the question."
+
     return evaluation
 
 
@@ -96,7 +129,34 @@ def fallback_relevance(topic: str, answer: str) -> str:
     return "high" if matches >= 2 else "partial" if matches == 1 else "none"
 
 
+def is_clearly_incorrect_answer(question: str, topic: str, answer: str) -> bool:
+    normalized_question = question.lower()
+    normalized_answer = answer.lower()
+
+    if topic != "RAG":
+        return False
+
+    false_rag_claims = (
+        "database used to store images",
+        "database for images",
+        "programming language",
+        "web development language",
+    )
+    false_embedding_claims = (
+        "increase the ram",
+        "increase ram",
+        "computer ram",
+        "memory of the computer",
+    )
+
+    if "embedding" in normalized_question:
+        return any(claim in normalized_answer for claim in false_embedding_claims)
+
+    return any(claim in normalized_answer for claim in false_rag_claims)
+
+
 def fallback_evaluation(
+    question: str,
     topic: str,
     answer: str,
     question_count: int,
@@ -134,6 +194,7 @@ def fallback_evaluation(
     has_project_detail = any(keyword in normalized_answer for keyword in project_keywords)
     has_challenge_detail = any(keyword in normalized_answer for keyword in challenge_keywords)
     relevance_level = fallback_relevance(topic, answer) if question_count <= 3 else "high"
+    clearly_incorrect = is_clearly_incorrect_answer(question, topic, answer)
 
     if (
         not normalized_answer
@@ -143,6 +204,12 @@ def fallback_evaluation(
         feedback = (
             "This answer does not demonstrate understanding of the concept. "
             "Review the key terms and try explaining the idea in your own words."
+        )
+    elif clearly_incorrect:
+        score = 0
+        feedback = (
+            "This answer is technically incorrect for the question. "
+            "Review the purpose of RAG and the role of embeddings."
         )
     elif question_count <= 3 and relevance_level == "none":
         score = 0
@@ -219,13 +286,14 @@ def fallback_evaluation(
     else:
         next_question = topic_questions[(question_count - 1) % len(topic_questions)]
 
-    return apply_relevance_safety({
+    return apply_evaluation_safety({
         "is_relevant": relevance_level in {"partial", "high"},
         "relevance_level": relevance_level,
+        "correctness": "incorrect" if clearly_incorrect or relevance_level in {"none", "low"} else "partial",
         "score": score,
         "feedback": feedback,
         "next_question": localize_question(next_question, language),
-    })
+    }, answer)
 
 
 def fallback_final_report(final_score: float) -> dict:
@@ -322,6 +390,7 @@ def generate_interview_question(
 # ==========================================
 
 def evaluate_answer(
+    candidate_name: str,
     role: str,
     topic: str,
     difficulty: str,
@@ -346,6 +415,7 @@ def evaluate_answer(
 
     if not use_remote_evaluation():
         return fallback_evaluation(
+            question=question,
             topic=topic,
             answer=answer,
             question_count=question_count,
@@ -535,6 +605,9 @@ For HARD difficulty:
     user_prompt = f"""
 You are evaluating a candidate during a technical interview.
 
+Candidate Name:
+{candidate_name}
+
 Candidate Role:
 {role}
 
@@ -569,11 +642,25 @@ RELEVANCE IS A HARD GATE. First classify whether the candidate actually
 addresses the current interview question. Do not award points for confident,
 well-written, detailed, or keyword-stuffed answers that do not answer it.
 
+If the candidate says they do not know, have no idea, or are not sure how to
+answer, set relevance_level to "none", correctness to "incorrect", and score to 0.
+Do not confuse this with a language problem; language problems are handled before
+this evaluation step.
+
+Technically false answers are incorrect even if they use technical words. For example,
+"RAG is a database used to store images" and "embeddings increase computer RAM" are
+incorrect and must receive a score no higher than 2.
+
 Relevance levels:
 - none: completely unrelated; score MUST be 0.
 - low: only a vague or incorrect connection; score MUST be at most 2.
 - partial: addresses part of the question; score MUST be at most 5.
 - high: directly answers the question; score may be 0 to 10 based on quality.
+
+Correctness values:
+- incorrect: technically false or does not provide an answer; score MUST be at most 2.
+- partial: contains some correct information but misses important details.
+- correct: technically accurate for the actual question.
 
 Only after relevance is determined, evaluate:
 
@@ -599,8 +686,10 @@ generating the next question.
 Return ONLY valid JSON with exactly these fields:
 
 {{
+    "intent": "technical_answer",
     "is_relevant": false,
     "relevance_level": "none",
+    "correctness": "incorrect",
     "score": 0,
     "feedback": "Concise feedback for the candidate.",
     "next_question": "One follow-up interview question."
@@ -610,7 +699,9 @@ Rules for the JSON response:
 
 - score must be an integer from 0 to 10.
 - is_relevant must be a boolean.
-- relevance_level must be one of: none, low, partial, high.
+- intent must be "technical_answer".
+- relevance_level must be one of: none, low, medium, partial, high.
+- correctness must be one of: incorrect, partial, correct.
 - feedback must be concise and constructive.
 - next_question must contain exactly one interview question.
 - Do not include Markdown.
@@ -657,8 +748,10 @@ Rules for the JSON response:
     # ==========================================
 
     required_fields = {
+        "intent",
         "is_relevant",
         "relevance_level",
+        "correctness",
         "score",
         "feedback",
         "next_question",
@@ -690,7 +783,7 @@ Rules for the JSON response:
         ) from error
 
 
-    return apply_relevance_safety(evaluation)
+    return apply_evaluation_safety(evaluation, answer)
 
 
 # ==========================================

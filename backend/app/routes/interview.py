@@ -195,6 +195,7 @@ def handle_conversation_turn(
 
     reply, technical_answer = build_conversation_reply(
         candidate_name=interview["candidate_name"],
+        role=interview["role"],
         current_question=interview["current_question"],
         transcript=request.transcript,
         language=request.language or interview.get("language", "en-US"),
@@ -235,6 +236,7 @@ def submit_interview_answer(
 
     try:
         evaluation = evaluate_answer(
+            candidate_name=interview["candidate_name"],
             role=interview["role"],
             topic=interview["topic"],
             difficulty=interview["difficulty"],

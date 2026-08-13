@@ -45,7 +45,7 @@ function Home() {
                     topic: topic,
                     difficulty: difficulty,
                     mode: mode,
-                    speechLanguage: speechLanguage,
+                    speechLanguage: "en-US",
                 },
             });
 

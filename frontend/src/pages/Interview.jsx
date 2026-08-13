@@ -220,54 +220,55 @@ function Interview() {
                     stopInterview("language-mismatch", false);
                     return;
                 }
+            }
 
-                const conversationResponse = await api.post("/interview/conversation", {
-                    interview_id: state.interview_id,
-                    transcript: answerText,
-                    language: speechLanguage,
-                });
+            const conversationResponse = await api.post("/interview/conversation", {
+                interview_id: state.interview_id,
+                transcript: answerText,
+                language: speechLanguage,
+            });
 
-                if (conversationResponse.data.is_conversation_turn) {
-                    if (!terminatedRef.current) {
-                        setConversationReply(conversationResponse.data.reply);
+            if (conversationResponse.data.is_conversation_turn) {
+                if (!terminatedRef.current) {
+                    setConversationReply(conversationResponse.data.reply);
 
-                        if (conversationResponse.data.technical_answer) {
-                            const response = await api.post(
-                                "/interview/answer",
-                                {
-                                    interview_id: state.interview_id,
-                                    answer: conversationResponse.data.technical_answer,
-                                }
-                            );
-
-                            if (terminatedRef.current) {
-                                return;
+                    if (conversationResponse.data.technical_answer) {
+                        const response = await api.post(
+                            "/interview/answer",
+                            {
+                                interview_id: state.interview_id,
+                                answer: conversationResponse.data.technical_answer,
                             }
+                        );
 
-                            const data = response.data;
-                            if (data.is_complete) {
-                                navigate("/result", {
-                                    state: {
-                                        ...data,
-                                        role: state.role,
-                                        topic: state.topic,
-                                        difficulty: state.difficulty,
-                                    },
-                                });
-                                return;
-                            }
-
-                            if (data.next_question) {
-                                setAutoListen(false);
-                                setQuestion(data.next_question);
-                                setQuestionNumber((previous) => previous + 1);
-                            }
+                        if (terminatedRef.current) {
+                            return;
                         }
 
-                        setAnswer("");
+                        const data = response.data;
+                        if (data.is_complete) {
+                            navigate("/result", {
+                                state: {
+                                    ...data,
+                                    role: state.role,
+                                    topic: state.topic,
+                                    difficulty: state.difficulty,
+                                },
+                            });
+                            return;
+                        }
+
+                        if (data.next_question) {
+                            setAutoListen(false);
+                            setQuestion(data.next_question);
+                            setQuestionNumber((previous) => previous + 1);
+                        }
                     }
-                    return;
+
+                    setAnswer("");
                 }
+                return;
+
             }
 
             if (terminatedRef.current) {

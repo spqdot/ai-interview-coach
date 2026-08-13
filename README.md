@@ -21,22 +21,11 @@ Candidates choose their target role, interview topic, and difficulty before begi
 - Graceful early-end handling for incomplete interviews.
 - Automatic voice flow: interviewer speaks, microphone starts, candidate finishes an answer, and the next question begins.
 
-## Voice Interview Languages
+## Language Availability
 
-The voice interview supports exactly these browser speech-recognition and speech-synthesis locales:
+English (`en-US`) is currently the only available language for both written and real-time voice interviews. The interview questions, reference material, AI evaluation, speech recognition, and speech synthesis are aligned to English so candidates receive reliable scores.
 
-| Language | Locale |
-| --- | --- |
-| English | `en-US` |
-| Portuguese (Brazil) | `pt-BR` |
-| German | `de-DE` |
-| Chinese | `zh-CN` |
-| Spanish | `es-ES` |
-| Italian | `it-IT` |
-
-For Portuguese, the application requests a Brazilian Portuguese (`pt-BR`) browser voice for speech synthesis and uses `pt-BR` for speech recognition.
-
-If a candidate states that they cannot speak, understand, or continue in the selected interview language, the interview ends immediately without generating another question or a misleading technical score. Normal answers such as “I don't know what RAG is” continue to evaluation as usual.
+Portuguese, German, Chinese, Spanish, and Italian are shown as unavailable in the language selector. Multilingual interview support and translated evaluation material are planned for a future release.
 
 ## Architecture
 
@@ -92,7 +81,6 @@ The FastAPI interview routes are available under `/api/interview`:
 - `POST /start` starts a new interview.
 - `POST /answer` evaluates an answer and returns the next question or final report.
 - `POST /stop` ends an interview early.
-- `POST /language-mismatch` checks whether the candidate cannot continue in the selected language.
 - `POST /conversation` handles supported conversational turns during voice interviews.
 
 Developed by Shrabani Panigrahi.

@@ -17,6 +17,7 @@ def _technical_answer_before_aside(transcript: str) -> str | None:
 
 def build_conversation_reply(
     candidate_name: str,
+    role: str,
     current_question: str,
     transcript: str,
     language: str = "en-US",
@@ -24,6 +25,10 @@ def build_conversation_reply(
     normalized = transcript.lower()
     asks_about_name = re.search(
         r"\b(?:do|can|will|would) you remember my name\b|\bwhat(?:'s| is) my name\b",
+        normalized,
+    )
+    asks_about_role = re.search(
+        r"\bwhat(?:'s| is) my (?:interview )?role\b|\bwhat role am i interviewing for\b",
         normalized,
     )
 
@@ -63,5 +68,18 @@ def build_conversation_reply(
             return answer_reply, technical_answer
 
         return repeat_reply, None
+
+    if asks_about_role:
+        replies = {
+            "pt-BR": f"Você está entrevistando para a vaga de {role}. Vamos continuar com a pergunta atual.",
+            "de-DE": f"Sie führen das Interview für die Rolle {role}. Setzen wir mit der aktuellen Frage fort.",
+            "zh-CN": f"你正在面试 {role} 岗位。让我们继续当前的问题。",
+            "es-ES": f"Estás entrevistando para el puesto de {role}. Continuemos con la pregunta actual.",
+            "it-IT": f"Stai sostenendo un colloquio per il ruolo di {role}. Continuiamo con la domanda attuale.",
+        }
+        return replies.get(
+            language,
+            f"You are interviewing for the {role} role. Let's continue with the current question.",
+        ), None
 
     return None, None
