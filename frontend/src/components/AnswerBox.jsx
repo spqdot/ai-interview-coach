@@ -312,7 +312,8 @@ function AnswerBox({
 
             {!voiceOnly && (
                 <button
-                    onClick={onSubmit}
+                    type="button"
+                    onClick={() => onSubmit()}
                     disabled={loading || isListening || !answer.trim()}
                     className="submit-button w-full mt-4 bg-blue-600 text-white rounded-lg p-3 hover:bg-blue-700 disabled:bg-gray-400"
                 >
