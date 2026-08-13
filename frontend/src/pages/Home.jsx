@@ -10,6 +10,7 @@ function Home() {
     const [difficulty, setDifficulty] = useState("Easy");
     const [mode, setMode] = useState("written");
     const [speechLanguage, setSpeechLanguage] = useState("en-US");
+    const [showLanguageInfo, setShowLanguageInfo] = useState(false);
 
     const [loading, setLoading] = useState(false);
 
@@ -29,7 +30,7 @@ function Home() {
                 role: role,
                 topic: topic,
                 difficulty: difficulty,
-                language: speechLanguage,
+                language: "en-US",
             });
 
             console.log("Interview started:", response.data);
@@ -249,13 +250,30 @@ function Home() {
                     </div>
 
                     <div className="language-field">
-                            <label className="field-label">
+                            <div className="language-label-row">
+                                <label className="field-label">
                                 {mode === "voice" ? "Voice Interview Language" : "Written Interview Language"}
-                            </label>
+                                </label>
+                                <button
+                                    type="button"
+                                    className="language-info-button"
+                                    aria-label="Language availability information"
+                                    aria-expanded={showLanguageInfo}
+                                    onClick={() => setShowLanguageInfo((isOpen) => !isOpen)}
+                                >
+                                    i
+                                </button>
+                            </div>
 
                             <p className="field-hint">
-                                Questions, feedback, and the interview conversation use this language.
+                                English is available for scored interviews.
                             </p>
+
+                            {showLanguageInfo && (
+                                <p className="language-info-message" role="status">
+                                    Use English for the interview. Other languages will be implemented in a future release.
+                                </p>
+                            )}
 
                             <select
                                 className="form-control w-full border rounded-lg p-3 mt-2"
@@ -263,7 +281,7 @@ function Home() {
                                 onChange={(e) => setSpeechLanguage(e.target.value)}
                             >
                                 {Object.entries(VOICE_LANGUAGES).map(([language, locale]) => (
-                                    <option key={locale} value={locale}>
+                                    <option key={locale} value={locale} disabled={locale !== "en-US"}>
                                             {VOICE_LANGUAGE_LABELS[locale]}
                                     </option>
                                 ))}

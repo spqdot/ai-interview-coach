@@ -121,6 +121,46 @@ textarea {
     background: #f4f9fc;
 }
 
+.language-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.language-info-button {
+    display: grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: 1px solid #5c91bc;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #164b7c;
+    font-family: "DM Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.language-info-button:hover,
+.language-info-button:focus-visible {
+    border-color: #1d5d96;
+    background: #e1f1f8;
+    outline: none;
+}
+
+.language-info-message {
+    margin: 0.75rem 0 0;
+    padding: 0.7rem 0.8rem;
+    border-left: 3px solid #1d5d96;
+    border-radius: 0.35rem;
+    background: #e7f3fb;
+    color: #164b7c;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
 .setup-form > div:not(.language-field) {
     position: relative;
 }
