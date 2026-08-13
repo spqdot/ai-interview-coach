@@ -1,5 +1,9 @@
+import json
+import os
 import re
 import unicodedata
+
+from openai import OpenAI
 
 
 def _normalize(text: str) -> str:
@@ -7,7 +11,51 @@ def _normalize(text: str) -> str:
     return "".join(character for character in normalized if not unicodedata.combining(character))
 
 
+LANGUAGE_NAMES = {
+    "en-US": "English",
+    "pt-PT": "Portuguese (Portugal)",
+    "de-DE": "German",
+    "zh-CN": "Chinese",
+    "es-ES": "Spanish",
+    "it-IT": "Italian",
+}
+
+
+def _llm_language_mismatch(selected_language: str, transcript: str) -> bool | None:
+    """Return None when an LLM decision is unavailable so the local fallback can run."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    prompt = f"""
+Classify whether a candidate cannot continue an interview in the selected language.
+Selected language: {LANGUAGE_NAMES.get(selected_language, selected_language)}
+Candidate transcript: {transcript!r}
+
+Return JSON only: {{\"language_mismatch\": true}} or {{\"language_mismatch\": false}}.
+Return true only when the candidate clearly says they cannot speak, understand, or
+continue in the selected language. Return false for not knowing a technical concept,
+not knowing an answer, or any other interview answer.
+"""
+    try:
+        response = OpenAI(api_key=api_key).chat.completions.create(
+            model=os.getenv("LANGUAGE_MISMATCH_MODEL", "gpt-4o-mini"),
+            messages=[{"role": "system", "content": "You are a precise intent classifier."},
+                      {"role": "user", "content": prompt}],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        payload = json.loads(response.choices[0].message.content or "{}")
+        return payload.get("language_mismatch") is True
+    except Exception:
+        return None
+
+
 def is_language_mismatch(selected_language: str, transcript: str) -> bool:
+    llm_decision = _llm_language_mismatch(selected_language, transcript)
+    if llm_decision is not None:
+        return llm_decision
+
     text = _normalize(transcript)
     language_patterns = {
         "en-US": [

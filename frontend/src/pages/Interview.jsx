@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import api from "../services/api";
 import AnswerBox from "../components/AnswerBox";
-import { VOICE_LANGUAGES, VOICE_LANGUAGE_LABELS } from "../voiceLanguages";
+import { VOICE_LANGUAGE_LABELS } from "../voiceLanguages";
 
 const stopPhrases = [
     "i do not want to continue",
@@ -83,21 +83,24 @@ function Interview() {
         setIsInterviewerSpeaking(true);
         window.speechSynthesis.cancel();
 
-        const portugueseVoice = availableVoices.find((voice) =>
-            voice.lang.toLowerCase().startsWith("pt-pt")
+        const selectedVoice = availableVoices.find((voice) =>
+            voice.lang.toLowerCase().startsWith(speechLanguage.toLowerCase())
         );
 
-        if (speechLanguage === "pt-PT" && !portugueseVoice) {
-            setSpeechMessage("This browser does not provide a dedicated Portuguese (Portugal) voice. The interview will use your browser's default speech voice; speech recognition remains Portuguese (Portugal). ");
-        } else {
-            setSpeechMessage("");
+        if (!selectedVoice) {
+            const message = speechLanguage === "pt-PT"
+                ? "This browser does not provide a Portuguese (Portugal) voice. Portuguese (Brazil) and the browser default will not be used. You can read the interviewer text and answer when the microphone starts."
+                : `This browser does not provide a ${VOICE_LANGUAGE_LABELS[speechLanguage]} voice. You can read the interviewer text and answer when the microphone starts.`;
+            setSpeechMessage(message);
+            startListeningAfterSpeech();
+            return;
         }
+
+        setSpeechMessage("");
 
         const utterance = new SpeechSynthesisUtterance(interviewerMessage);
         utterance.lang = speechLanguage;
-        utterance.voice = speechLanguage === "pt-PT"
-            ? portugueseVoice
-            : availableVoices.find((voice) => voice.lang.toLowerCase().startsWith(speechLanguage.toLowerCase()));
+        utterance.voice = selectedVoice;
         utterance.rate = 0.92;
         utterance.onend = startListeningAfterSpeech;
         utterance.onerror = startListeningAfterSpeech;
@@ -221,6 +224,7 @@ function Interview() {
                 const conversationResponse = await api.post("/interview/conversation", {
                     interview_id: state.interview_id,
                     transcript: answerText,
+                    language: speechLanguage,
                 });
 
                 if (conversationResponse.data.is_conversation_turn) {
@@ -443,23 +447,9 @@ function Interview() {
                                     Voice Language
                                 </label>
 
-                                <select
-                                    className="form-control mt-1 p-2 text-sm"
-                                    value={speechLanguage}
-                                    onChange={(event) => {
-                                        setAutoListen(false);
-                                        window.speechSynthesis?.cancel();
-                                        setSpeechMessage("");
-                                        setSpeechLanguage(event.target.value);
-                                    }}
-                                    disabled={loading || isInterviewerSpeaking}
-                                >
-                                    {Object.entries(VOICE_LANGUAGES).map(([language, locale]) => (
-                                        <option key={locale} value={locale}>
-                                            {VOICE_LANGUAGE_LABELS[locale]}
-                                        </option>
-                                    ))}
-                                </select>
+                                <p className="font-semibold text-gray-800 mt-1">
+                                    {VOICE_LANGUAGE_LABELS[speechLanguage]}
+                                </p>
                             </div>
                         )}
 
@@ -555,6 +545,7 @@ function Interview() {
                     ========================================== */}
 
                     <AnswerBox
+                        key={`${questionNumber}-${speechLanguage}`}
                         answer={answer}
                         setAnswer={setAnswer}
                         onSubmit={submitAnswer}

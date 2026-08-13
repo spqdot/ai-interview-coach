@@ -287,6 +287,10 @@ function Home() {
 
                 </div>
 
+                <p className="mt-6 text-center text-xs text-gray-400">
+                    Developed by Shrabani Panigrahi
+                </p>
+
             </div>
 
         </div>

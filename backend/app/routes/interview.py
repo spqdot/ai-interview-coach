@@ -197,6 +197,7 @@ def handle_conversation_turn(
         candidate_name=interview["candidate_name"],
         current_question=interview["current_question"],
         transcript=request.transcript,
+        language=request.language or interview.get("language", "en-US"),
     )
 
     return ConversationTurnResponse(
