@@ -30,9 +30,9 @@ def build_conversation_reply(
     if asks_about_name:
         technical_answer = _technical_answer_before_aside(transcript)
         replies = {
-            "pt-PT": (
-                f"Sim, o seu nome é {candidate_name}. Ouvi a sua explicação e vamos desenvolvê-la.",
-                f"Sim, o seu nome é {candidate_name}. Vamos continuar a entrevista. Vou repetir a pergunta atual.",
+            "pt-BR": (
+                f"Sim, seu nome é {candidate_name}. Ouvi sua explicação e vamos desenvolvê-la.",
+                f"Sim, seu nome é {candidate_name}. Vamos continuar a entrevista. Vou repetir a pergunta atual.",
             ),
             "de-DE": (
                 f"Ja, Ihr Name ist {candidate_name}. Ich habe Ihre Erklärung gehört und wir bauen darauf auf.",

@@ -590,8 +590,8 @@ NEXT QUESTION INSTRUCTION:
 --------------------------
 
 Interview language: {language}
-Generate the feedback and next question entirely in this language. For pt-PT,
-use European Portuguese, never Brazilian Portuguese.
+Generate the feedback and next question entirely in this language. For pt-BR,
+use Brazilian Portuguese.
 
 You MUST follow the NEXT QUESTION INSTRUCTION when
 generating the next question.

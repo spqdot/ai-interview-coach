@@ -1,6 +1,6 @@
 export const VOICE_LANGUAGES = {
     English: "en-US",
-    Portuguese: "pt-PT",
+    Portuguese: "pt-BR",
     German: "de-DE",
     Chinese: "zh-CN",
     Spanish: "es-ES",
@@ -9,7 +9,7 @@ export const VOICE_LANGUAGES = {
 
 export const VOICE_LANGUAGE_LABELS = {
     "en-US": "🇬🇧 English",
-    "pt-PT": "🇵🇹 Portuguese (Portugal)",
+    "pt-BR": "🇧🇷 Portuguese (Brazil)",
     "de-DE": "🇩🇪 German",
     "zh-CN": "🇨🇳 Chinese",
     "es-ES": "🇪🇸 Spanish",

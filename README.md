@@ -28,13 +28,13 @@ The voice interview supports exactly these browser speech-recognition and speech
 | Language | Locale |
 | --- | --- |
 | English | `en-US` |
-| Portuguese (Portugal) | `pt-PT` |
+| Portuguese (Brazil) | `pt-BR` |
 | German | `de-DE` |
 | Chinese | `zh-CN` |
 | Spanish | `es-ES` |
 | Italian | `it-IT` |
 
-For Portuguese, the application requests a `pt-PT` voice only. It does not silently substitute Brazilian Portuguese (`pt-BR`). If a compatible Portugal Portuguese voice is unavailable in the browser, the candidate receives a clear message and can read the interviewer text instead.
+For Portuguese, the application requests a Brazilian Portuguese (`pt-BR`) browser voice for speech synthesis and uses `pt-BR` for speech recognition.
 
 If a candidate states that they cannot speak, understand, or continue in the selected interview language, the interview ends immediately without generating another question or a misleading technical score. Normal answers such as “I don't know what RAG is” continue to evaluation as usual.
 

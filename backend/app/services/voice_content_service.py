@@ -1,16 +1,16 @@
 VOICE_CONTENT = {
-    "pt-PT": {
+    "pt-BR": {
         "greeting": "Olá {name}! Bem-vinda à sua entrevista simulada para {role}.",
         "rag": "Explique o que é a Geração Aumentada por Recuperação (RAG) e descreva como funciona.",
         "embeddings": "Que papel desempenham os embeddings num sistema RAG?",
-        "vector": "Porque é que um sistema RAG utiliza uma base de dados vetorial?",
-        "llm": "O que é um modelo de linguagem de grande dimensão (LLM) e para que é utilizado?",
-        "ml": "Qual é a diferença entre aprendizagem supervisionada e não supervisionada?",
-        "deep_learning": "O que é uma rede neuronal e como aprende?",
-        "nlp": "O que é o Processamento de Linguagem Natural (PLN) e quais são algumas aplicações comuns?",
-        "generic": "Quais são os conceitos fundamentais de {topic} e porque são importantes?",
-        "project": "Pode descrever um projeto relevante em que trabalhou, o problema que resolveu e a sua contribuição pessoal?",
-        "challenge": "Qual foi um desafio técnico nesse projeto e como o resolveu?",
+        "vector": "Por que um sistema RAG usa um banco de dados vetorial?",
+        "llm": "O que é um modelo de linguagem grande (LLM) e para que ele é usado?",
+        "ml": "Qual é a diferença entre aprendizado supervisionado e não supervisionado?",
+        "deep_learning": "O que é uma rede neural e como ela aprende?",
+        "nlp": "O que é Processamento de Linguagem Natural (PLN) e quais são algumas aplicações comuns?",
+        "generic": "Quais são os conceitos fundamentais de {topic} e por que eles são importantes?",
+        "project": "Você pode descrever um projeto relevante em que trabalhou, o problema que ele resolveu e sua contribuição pessoal?",
+        "challenge": "Qual foi um desafio técnico nesse projeto e como você o resolveu?",
     },
     "de-DE": {
         "greeting": "Hallo {name}! Willkommen zu Ihrem Probeinterview als {role}.",

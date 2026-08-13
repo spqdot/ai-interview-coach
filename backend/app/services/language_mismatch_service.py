@@ -13,7 +13,7 @@ def _normalize(text: str) -> str:
 
 LANGUAGE_NAMES = {
     "en-US": "English",
-    "pt-PT": "Portuguese (Portugal)",
+    "pt-BR": "Portuguese (Brazil)",
     "de-DE": "German",
     "zh-CN": "Chinese",
     "es-ES": "Spanish",
@@ -65,7 +65,7 @@ def is_language_mismatch(selected_language: str, transcript: str) -> bool:
             r"\bi want to (stop|end) (this )?interview\b",
             r"\b(stop|end|quit) (this )?interview\b",
         ],
-        "pt-PT": [
+        "pt-BR": [
             r"\b(nao (falo|sei falar|consigo falar|consigo continuar em|entendo) portugues)\b",
             r"\beu nao (falo|entendo) portugues\b",
             r"\beu nao (falo|entendo) esta lingua\b",

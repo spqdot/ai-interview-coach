@@ -88,8 +88,8 @@ function Interview() {
         );
 
         if (!selectedVoice) {
-            const message = speechLanguage === "pt-PT"
-                ? "This browser does not provide a Portuguese (Portugal) voice. Portuguese (Brazil) and the browser default will not be used. You can read the interviewer text and answer when the microphone starts."
+            const message = speechLanguage === "pt-BR"
+                ? "This browser does not provide a Brazilian Portuguese voice. You can read the interviewer text and answer when the microphone starts."
                 : `This browser does not provide a ${VOICE_LANGUAGE_LABELS[speechLanguage]} voice. You can read the interviewer text and answer when the microphone starts.`;
             setSpeechMessage(message);
             startListeningAfterSpeech();
