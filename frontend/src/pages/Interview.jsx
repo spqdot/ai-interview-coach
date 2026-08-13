@@ -25,7 +25,7 @@ function Interview() {
 
     const [answer, setAnswer] = useState("");
     const [loading, setLoading] = useState(false);
-    const [speechLanguage, setSpeechLanguage] = useState(
+    const [speechLanguage] = useState(
         state?.speechLanguage || "en-US"
     );
     const [isInterviewerSpeaking, setIsInterviewerSpeaking] = useState(false);
@@ -441,17 +441,15 @@ function Interview() {
                             </p>
                         </div>
 
-                        {isVoiceInterview && (
-                            <div>
+                        <div>
                                 <label className="text-sm text-gray-500 block">
-                                    Voice Language
+                                    {isVoiceInterview ? "Voice Language" : "Written Language"}
                                 </label>
 
                                 <p className="font-semibold text-gray-800 mt-1">
                                     {VOICE_LANGUAGE_LABELS[speechLanguage]}
                                 </p>
-                            </div>
-                        )}
+                        </div>
 
                     </div>
 

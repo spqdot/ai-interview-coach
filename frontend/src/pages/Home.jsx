@@ -29,7 +29,7 @@ function Home() {
                 role: role,
                 topic: topic,
                 difficulty: difficulty,
-                language: mode === "voice" ? speechLanguage : undefined,
+                language: speechLanguage,
             });
 
             console.log("Interview started:", response.data);
@@ -75,6 +75,8 @@ function Home() {
             <div className="home-card bg-white rounded-xl shadow-lg p-8 w-[500px]">
 
                 {/* Title */}
+                <div className="home-brand-mark" aria-hidden="true">AI</div>
+
                 <p className="eyebrow text-center mb-3">Technical practice studio</p>
 
                 <h1 className="page-title text-3xl font-bold text-center mb-2">
@@ -115,7 +117,7 @@ function Home() {
                 </div>
 
 
-                <div className="space-y-5">
+                    <div className="setup-form space-y-5">
 
                     {/* Candidate Name */}
                     <div>
@@ -246,11 +248,14 @@ function Home() {
                         </select>
                     </div>
 
-                    {mode === "voice" && (
-                        <div>
+                    <div className="language-field">
                             <label className="field-label">
-                                Voice Interview Language
+                                {mode === "voice" ? "Voice Interview Language" : "Written Interview Language"}
                             </label>
+
+                            <p className="field-hint">
+                                Questions, feedback, and the interview conversation use this language.
+                            </p>
 
                             <select
                                 className="form-control w-full border rounded-lg p-3 mt-2"
@@ -263,8 +268,7 @@ function Home() {
                                     </option>
                                 ))}
                             </select>
-                        </div>
-                    )}
+                    </div>
 
 
                     {/* Start Interview Button */}
