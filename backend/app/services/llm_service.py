@@ -126,8 +126,9 @@ def apply_evaluation_safety(evaluation: dict, question: str, answer: str) -> dic
     return evaluation
 
 
-def fallback_relevance(topic: str, answer: str) -> str:
+def fallback_relevance(question: str, topic: str, answer: str) -> str:
     normalized = answer.strip().lower()
+    normalized_question = question.lower()
 
     if topic == "RAG":
         unrelated_context = {
@@ -136,6 +137,17 @@ def fallback_relevance(topic: str, answer: str) -> str:
         }
         if any(term in normalized for term in unrelated_context):
             return "none"
+
+        if "embedding" in normalized_question:
+            explains_embeddings = (
+                "embedding" in normalized
+                and any(
+                    term in normalized
+                    for term in {"vector", "numerical", "semantic", "similarity", "representation"}
+                )
+            )
+            if explains_embeddings:
+                return "high"
 
         has_full_name = "retrieval-augmented generation" in normalized or "retrieval augmented generation" in normalized
         has_retrieval = any(term in normalized for term in {"retrieval", "retrieve", "retrieves", "retrieved", "documents", "document", "search"})
@@ -229,7 +241,7 @@ def fallback_evaluation(
     }
     has_project_detail = any(keyword in normalized_answer for keyword in project_keywords)
     has_challenge_detail = any(keyword in normalized_answer for keyword in challenge_keywords)
-    relevance_level = fallback_relevance(topic, answer) if question_count <= 3 else "high"
+    relevance_level = fallback_relevance(question, topic, answer) if question_count <= 3 else "high"
     clearly_incorrect = is_clearly_incorrect_answer(question, topic, answer)
 
     if (
@@ -688,8 +700,12 @@ Technically false answers are incorrect even if they use technical words. For ex
 incorrect and must receive a score no higher than 2.
 
 Relevance levels:
-- none: completely unrelated; score MUST be 0.
-- low: only a vague or incorrect connection; score MUST be at most 2.
+- none: the response makes no meaningful attempt to answer the current interview
+    question; score MUST be 0. Poems, personal preferences, travel, music, and other
+    unrelated statements are none, even if they contain a word from the question.
+- low: the response attempts to answer the current question but is vague, incomplete,
+    or technically incorrect; score MUST be at most 2. Do not use low for an unrelated
+    response.
 - partial: addresses part of the question; score MUST be at most 5.
 - high: directly answers the question; score may be 0 to 10 based on quality.
 
