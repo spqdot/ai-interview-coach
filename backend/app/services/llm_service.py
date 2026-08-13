@@ -60,7 +60,34 @@ def is_no_knowledge_answer(answer: str) -> bool:
     return any(pattern in normalized for pattern in NO_KNOWLEDGE_PATTERNS)
 
 
-def apply_evaluation_safety(evaluation: dict, answer: str) -> dict:
+def is_no_project_experience_answer(question: str, answer: str) -> bool:
+    normalized_question = question.lower()
+    normalized_answer = answer.strip().lower()
+    is_project_question = any(
+        term in normalized_question
+        for term in ("project", "personal contribution", "project experience")
+    )
+    no_project_experience_patterns = (
+        "i did not do any project",
+        "i haven't worked on any project",
+        "i haven't worked on any projects",
+        "i haven't done any project",
+        "i haven't done any projects",
+        "i don't have any project experience",
+        "i don't have a relevant project",
+        "i have no experience with this",
+        "i haven't worked on this",
+        "i cannot answer this",
+        "i can't answer this",
+        "i don't have an example",
+    )
+    return is_project_question and any(
+        pattern in normalized_answer
+        for pattern in no_project_experience_patterns
+    )
+
+
+def apply_evaluation_safety(evaluation: dict, question: str, answer: str) -> dict:
     relevance_level = evaluation.get("relevance_level", "none")
     correctness = evaluation.get("correctness", "incorrect")
 
@@ -86,6 +113,15 @@ def apply_evaluation_safety(evaluation: dict, answer: str) -> dict:
         evaluation["correctness"] = "incorrect"
         evaluation["is_relevant"] = False
         evaluation["feedback"] = "The candidate did not provide an answer to the question."
+
+    if is_no_project_experience_answer(question, answer):
+        evaluation["score"] = 0
+        evaluation["relevance_level"] = "none"
+        evaluation["correctness"] = "incorrect"
+        evaluation["is_relevant"] = False
+        evaluation["feedback"] = (
+            "The candidate did not provide a project example or describe any personal project experience."
+        )
 
     return evaluation
 
@@ -293,7 +329,7 @@ def fallback_evaluation(
         "score": score,
         "feedback": feedback,
         "next_question": localize_question(next_question, language),
-    }, answer)
+    }, question, answer)
 
 
 def fallback_final_report(final_score: float) -> dict:
@@ -783,7 +819,7 @@ Rules for the JSON response:
         ) from error
 
 
-    return apply_evaluation_safety(evaluation, answer)
+    return apply_evaluation_safety(evaluation, question, answer)
 
 
 # ==========================================
