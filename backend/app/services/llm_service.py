@@ -208,6 +208,7 @@ def fallback_evaluation(
     topic: str,
     answer: str,
     question_count: int,
+    difficulty: str,
     language: str = "en-US",
 ) -> dict:
     normalized_answer = answer.strip().lower()
@@ -304,22 +305,58 @@ def fallback_evaluation(
             "and a concrete example."
         )
 
+    difficulty_key = difficulty.strip().lower()
     follow_up_questions = {
-        "RAG": [
-            "What role do embeddings play in a RAG system?",
-            "Why does a RAG system use a vector database?",
-        ],
-        "LLM Fundamentals": [
-            "What is tokenization, and why is it important for an LLM?",
-            "What is a context window in an LLM?",
-        ],
+        "easy": {
+            "RAG": [
+                "What role do embeddings play in a RAG system?",
+                "Why does a RAG system use a vector database?",
+            ],
+            "LLM Fundamentals": [
+                "What is tokenization, and why is it important for an LLM?",
+                "What is a context window in an LLM?",
+            ],
+        },
+        "medium": {
+            "RAG": [
+                "How would you choose a chunking strategy for a RAG application?",
+                "How would you evaluate whether a RAG system retrieves relevant documents?",
+            ],
+            "LLM Fundamentals": [
+                "How do token limits affect the design of an LLM application?",
+                "What trade-offs would you consider when choosing an LLM for a product feature?",
+            ],
+        },
+        "hard": {
+            "RAG": [
+                "How would you design a RAG system that maintains low latency as its document collection grows?",
+                "How would you diagnose and reduce hallucinations in a production RAG system?",
+            ],
+            "LLM Fundamentals": [
+                "How would you design model routing for an LLM product with latency, cost, and quality requirements?",
+                "How would you monitor and mitigate context-window failures in a production LLM application?",
+            ],
+        },
     }
-    topic_questions = follow_up_questions.get(
+    topic_questions = follow_up_questions.get(difficulty_key, follow_up_questions["easy"]).get(
         topic,
-        [
+        {
+            "easy": [
+                f"What is one important use case for {topic}?",
+                f"What is one challenge when working with {topic}?",
+            ],
+            "medium": [
+                f"How would you apply {topic} in a practical project?",
+                f"What trade-off would you consider when implementing {topic}?",
+            ],
+            "hard": [
+                f"How would you design a scalable production system using {topic}?",
+                f"How would you diagnose and improve a failing {topic} system in production?",
+            ],
+        }.get(difficulty_key, [
             f"What is one important use case for {topic}?",
             f"What is one challenge when working with {topic}?",
-        ],
+        ]),
     )
 
     if question_count == 3:
@@ -400,35 +437,37 @@ def generate_interview_question(
     """
 
     fallback_questions = {
-        "RAG": (
-            "Explain what Retrieval-Augmented Generation (RAG) "
-            "is and describe how it works."
-        ),
-
-        "LLM Fundamentals": (
-            "What is a Large Language Model (LLM), "
-            "and what is it used for?"
-        ),
-
-        "Machine Learning": (
-            "What is the difference between supervised "
-            "and unsupervised learning?"
-        ),
-
-        "Deep Learning": (
-            "What is a neural network, and how does it learn?"
-        ),
-
-        "NLP": (
-            "What is Natural Language Processing (NLP), "
-            "and what are some common applications?"
-        ),
+        "easy": {
+            "RAG": "What is Retrieval-Augmented Generation (RAG), and what problem does it solve?",
+            "LLM Fundamentals": "What is a Large Language Model (LLM), and what is it used for?",
+            "Machine Learning": "What is the difference between supervised and unsupervised learning?",
+            "Deep Learning": "What is a neural network, and how does it learn?",
+            "NLP": "What is Natural Language Processing (NLP), and what are some common applications?",
+        },
+        "medium": {
+            "RAG": "How would you choose a chunking strategy for a RAG application?",
+            "LLM Fundamentals": "How do token limits affect the design of an LLM application?",
+            "Machine Learning": "How would you select and evaluate a model for an imbalanced classification problem?",
+            "Deep Learning": "How would you identify and reduce overfitting in a neural network?",
+            "NLP": "How would you evaluate whether an NLP classification model is performing well?",
+        },
+        "hard": {
+            "RAG": "How would you design a low-latency, scalable RAG system for a frequently changing knowledge base?",
+            "LLM Fundamentals": "How would you design model routing for an LLM product with cost, latency, and quality constraints?",
+            "Machine Learning": "How would you design a production ML system that detects and responds to data drift?",
+            "Deep Learning": "How would you design a distributed training strategy for a large deep learning model?",
+            "NLP": "How would you design an NLP system that remains reliable across multiple domains and changing language patterns?",
+        },
     }
 
-    question = fallback_questions.get(
+    difficulty_key = difficulty.strip().lower()
+    question = fallback_questions.get(difficulty_key, fallback_questions["easy"]).get(
         topic,
-        f"What are the fundamental concepts of {topic}, "
-        f"and why are they important?"
+        {
+            "easy": f"What are the fundamental concepts of {topic}, and why are they important?",
+            "medium": f"How would you apply {topic} to solve a practical problem?",
+            "hard": f"How would you design a scalable, production-ready system using {topic}?",
+        }.get(difficulty_key, f"What are the fundamental concepts of {topic}, and why are they important?"),
     )
     return localize_question(question, language)
 
@@ -467,6 +506,7 @@ def evaluate_answer(
             topic=topic,
             answer=answer,
             question_count=question_count,
+            difficulty=difficulty,
             language=language,
         )
 
