@@ -110,7 +110,7 @@ def search_interview_questions(
         filters["role"] = role
 
     if difficulty:
-        filters["difficulty"] = difficulty
+        filters["difficulty"] = difficulty.strip().lower()
 
     results = vectorstore.similarity_search(
         query=query,
