@@ -167,19 +167,6 @@ function AnswerBox({
                 return;
             }
 
-            if (shouldListenRef.current && !submittingRef.current) {
-                retryTimerRef.current = setTimeout(() => {
-                    if (interviewIsStopped()) {
-                        return;
-                    }
-
-                    try {
-                        recognition.start();
-                    } catch (error) {
-                        setVoiceMessage("Speech recognition could not restart. Please refresh and try again.");
-                    }
-                }, 350);
-            }
         };
 
         recognitionRef.current = recognition;
